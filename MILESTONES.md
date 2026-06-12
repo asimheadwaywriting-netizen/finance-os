@@ -30,13 +30,13 @@ git push && git push --tags
 **Goal:** Dark dashboard visible at a live Vercel URL with placeholder data.
 
 ### Claude Code
-- [ ] Scaffold: `npx create-next-app@14 . --typescript --tailwind --eslint --app`
-- [ ] Configure `tailwind.config.ts` with brand colors (`#0b0f17` bg, blue-500, orange-500, amber-500)
-- [ ] Create `lib/types.ts` with all interfaces from CLAUDE.md
-- [ ] Create `lib/utils.ts` — `formatCurrency()`, `formatDate()`, `cn()`
-- [ ] Create `lib/constants.ts` — `CATEGORY_COLORS`, `CATEGORY_LIST` (use the finalized taxonomy in CLAUDE.md "Category Taxonomy")
-- [ ] Create stub API routes returning hardcoded JSON (dashboard, transactions, chat)
-- [ ] Update `gemini.md` with confirmed scaffold structure
+- [x] Scaffold: `npx create-next-app@14 . --typescript --tailwind --eslint --app`
+- [x] Configure `tailwind.config.ts` with brand colors (`#0b0f17` bg, blue-500, orange-500, amber-500)
+- [x] Create `lib/types.ts` with all interfaces from CLAUDE.md
+- [x] Create `lib/utils.ts` — `formatCurrency()`, `formatDate()`, `cn()`
+- [x] Create `lib/constants.ts` — `CATEGORY_COLORS`, `CATEGORY_LIST` (use the finalized taxonomy in CLAUDE.md "Category Taxonomy")
+- [x] Create stub API routes returning hardcoded JSON (dashboard, transactions, chat)
+- [x] Update `gemini.md` with confirmed scaffold structure
 
 ### Antigravity
 - [ ] Install shadcn/ui: `npx shadcn@latest init`

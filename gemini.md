@@ -36,6 +36,39 @@ Install shadcn/ui: `npx shadcn@latest init` then add components as needed:
 npx shadcn@latest add card button input table badge sheet skeleton separator
 ```
 
+## Confirmed Scaffold (Milestone 1 — built by Claude Code)
+
+Exact versions: Next.js `14.2.35`, React 18, TypeScript 5, Tailwind `3.4.1`, ESLint 8. App Router, no `src/` directory, `@/*` path alias configured in `tsconfig.json`.
+
+```
+finance-os/
+├── app/
+│   ├── api/
+│   │   ├── dashboard/route.ts     # GET — returns stub DashboardData (Claude Code)
+│   │   ├── transactions/route.ts  # POST — validates + echoes transaction (Claude Code)
+│   │   └── chat/route.ts          # POST — canned stub reply (Claude Code)
+│   ├── globals.css                # ← yours: set #0b0f17 background here
+│   ├── layout.tsx                 # ← yours: root layout, fonts
+│   └── page.tsx                   # ← yours: dashboard composition
+├── lib/
+│   ├── types.ts                   # DashboardData, Transaction, ChatMessage
+│   ├── utils.ts                   # formatCurrency, formatDate, cn
+│   └── constants.ts               # CATEGORY_LIST, CATEGORY_COLORS, categoriesForType, COLORS
+├── tailwind.config.ts             # brand colors configured (see below)
+└── package.json
+```
+
+**Tailwind brand tokens available now** (`tailwind.config.ts` → `theme.extend.colors.brand`): `brand-bg` (#0b0f17), `brand-income` (blue-500), `brand-expense` (orange-500), `brand-warning` (amber-500), `brand-neutral` (gray-500), `brand-success` (emerald-500). Use e.g. `bg-brand-bg`, `text-brand-income`.
+
+**`lib/constants.ts` exports:**
+- `CATEGORY_LIST: CategoryDef[]` — `{ name, type: 'Income' | 'Expense', color }`, all 18 categories
+- `CATEGORY_COLORS: Record<string, string>` — category name → hex
+- `categoriesForType(type)` — filtered list for the TransactionForm dropdown
+- `COLORS` — the design-system hex tokens
+- `BUDGET_WARNING_THRESHOLD` — `0.8`
+
+**Stub API routes are live** — `GET /api/dashboard` already returns realistic fake `DashboardData`, so every component and hook can be built and tested against real responses before n8n is wired up. `POST /api/transactions` validates required fields (400 on missing) and echoes back `{ success: true, transaction }`. `POST /api/chat` returns a canned `{ reply }`.
+
 ## Design System
 
 **Background:** `#0b0f17` (set on `<body>` and `html` in globals.css)
