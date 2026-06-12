@@ -15,7 +15,9 @@ import TransactionForm from '@/components/transactions/TransactionForm'
 import TransactionList from '@/components/transactions/TransactionList'
 import { Skeleton } from '@/components/ui/skeleton'
 import ChatPanel from '@/components/chat/ChatPanel'
-import { Sparkles } from 'lucide-react'
+import AccountBalances from '@/components/accounts/AccountBalances'
+import AssetMaturityTracker from '@/components/assets/AssetMaturityTracker'
+import { cn, formatCurrency } from '@/lib/utils'
 
 export default function Home() {
   const [activeView, setActiveView] = useState<string>('dashboard')
@@ -158,15 +160,8 @@ export default function Home() {
                 <p className="text-xs text-gray-500">Breakdown of current asset allocations</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 mt-4 pr-1">
-                {data.accountBalances.map((acc, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.07] transition-all">
-                    <span className="text-xs font-medium text-gray-300">{acc.name}</span>
-                    <span className="text-xs font-mono font-semibold text-brand-income">
-                      {acc.balance >= 0 ? '+' : ''}৳{acc.balance.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+              <div className="flex-1 overflow-y-auto mt-4 pr-1">
+                <AccountBalances accounts={data.accountBalances} />
               </div>
             </CardContent>
           </Card>
@@ -209,9 +204,12 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Row 3: Recent Transactions Summary List */}
-        <TransactionList 
-          transactions={data.recentTransactions} 
+        {/* Row 3: Assets & Maturities */}
+        <AssetMaturityTracker assets={data.assets} />
+
+        {/* Row 4: Recent Transactions Summary List */}
+        <TransactionList
+          transactions={data.recentTransactions}
           title="Recent Transactions"
         />
       </div>
@@ -281,19 +279,116 @@ export default function Home() {
     )
   }
 
-  const renderPlaceholderView = (title: string, description: string, milestone: string) => {
-    return (
-      <Card className="bg-card border-white/10 p-8 text-center max-w-2xl mx-auto my-12 relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-24 h-24 bg-brand-income/5 rounded-full blur-2xl pointer-events-none" />
-        <div className="flex flex-col items-center justify-center py-8">
-          <div className="w-16 h-16 rounded-full bg-brand-income/10 flex items-center justify-center mb-4 border border-brand-income/20 text-brand-income">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <span className="text-[10px] text-brand-income bg-brand-income/10 px-2.5 py-0.5 rounded-full font-mono border border-brand-income/20 mb-3">{milestone}</span>
-          <h3 className="text-lg font-medium text-white mb-2">{title}</h3>
-          <p className="text-xs text-gray-500 max-w-md leading-relaxed">{description}</p>
+  const renderGoalsView = () => {
+    if (error && !data) {
+      return <ErrorBanner message={error.message} onRetry={mutate} />
+    }
+
+    if (isLoading || !data) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 space-y-4">
+                <Skeleton className="h-5 w-32 bg-white/5" />
+                <Skeleton className="h-2 w-full bg-white/5" />
+                <Skeleton className="h-4 w-40 bg-white/5" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </Card>
+      )
+    }
+
+    const priorityStyles: Record<string, string> = {
+      High: 'text-brand-expense bg-brand-expense/10 border-brand-expense/20',
+      Medium: 'text-brand-warning bg-brand-warning/10 border-brand-warning/20',
+      Low: 'text-gray-400 bg-white/5 border-white/10'
+    }
+
+    return (
+      <div className="space-y-6">
+        {error && (
+          <ErrorBanner message={error.message} onRetry={mutate} />
+        )}
+
+        {data.goals.length === 0 ? (
+          <Card className="bg-card border-white/10">
+            <CardContent className="p-8 text-center text-xs text-gray-500">
+              No savings goals set up yet.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {data.goals.map((goal, idx) => {
+              const pct = Math.round(Math.max(0, Math.min(100, goal.progressPct)))
+              return (
+                <Card key={idx} className="bg-card border-white/10 overflow-hidden">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-medium text-white">{goal.name}</h4>
+                      <span className={cn(
+                        'text-[10px] px-2 py-0.5 rounded-full border font-mono whitespace-nowrap',
+                        priorityStyles[goal.priority] || priorityStyles.Low
+                      )}>
+                        {goal.priority}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-gray-100">{formatCurrency(goal.saved)}</span>
+                        <span className="text-gray-500">of {formatCurrency(goal.target)}</span>
+                      </div>
+                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                        <div
+                          className="h-full bg-brand-income rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="text-right text-[10px] text-gray-500 font-mono">{pct}% saved</div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs pt-3 border-t border-white/5">
+                      <span className="text-gray-500">Monthly contribution</span>
+                      <span className="font-mono text-gray-300">{formatCurrency(goal.contribution)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderAssetsView = () => {
+    if (error && !data) {
+      return <ErrorBanner message={error.message} onRetry={mutate} />
+    }
+
+    if (isLoading || !data) {
+      return (
+        <Card className="bg-card border-white/10 overflow-hidden">
+          <CardContent className="p-6 space-y-3">
+            <Skeleton className="h-6 w-44 bg-white/5" />
+            <Skeleton className="h-10 w-full bg-white/5" />
+            <Skeleton className="h-10 w-full bg-white/5" />
+            <Skeleton className="h-10 w-full bg-white/5" />
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        {error && (
+          <ErrorBanner message={error.message} onRetry={mutate} />
+        )}
+
+        <AssetMaturityTracker assets={data.assets} title="Asset Maturity Tracker" />
+      </div>
     )
   }
 
@@ -316,17 +411,9 @@ export default function Home() {
           
           {activeView === 'transactions' && renderTransactionsView()}
 
-          {activeView === 'goals' && renderPlaceholderView(
-            "Savings Goals Progress",
-            "Aggregated savings goals tracking with visual progress gauges and priority alerts will be implemented in Milestone 8.",
-            "Milestone 8"
-          )}
+          {activeView === 'goals' && renderGoalsView()}
 
-          {activeView === 'assets' && renderPlaceholderView(
-            "Assets Maturity Tracker",
-            "Maturity tracker highlighting days left on fixed deposits and DPS investments with risk/warning notifications will be implemented in Milestone 8.",
-            "Milestone 8"
-          )}
+          {activeView === 'assets' && renderAssetsView()}
         </div>
       </AppShell>
 

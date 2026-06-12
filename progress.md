@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-13)
 
-**Progress: ~94% · Latest tag: `v0.7-chat-log`**
+**Progress: ~96% · Latest tag: `v0.8-full-dashboard`**
 
 | What | Status |
 |------|--------|
@@ -53,6 +53,13 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - **Workflow 3 extended** (scripted in `n8n/deploy-milestone7.js`): `Parse Intent → Is Log Request?` IF; true branch POSTs the parsed transaction to Workflow 2's webhook (`neverError` + `fullResponse` so a 400 becomes a friendly chat reply, not a crash) → `Build Logged Reply` → respond. Gmail confirmation node sits AFTER `Return Chat Reply` behind an `Email Confirmation?` IF, with `onError: continue` — email latency or failure can never delay or break the chat reply.
 - **Tested live end to end:** regression (groceries → ৳6,400 still correct); "Log a 10 taka Miscellaneous expense in Cash" → reply "Logged: Expense of ৳10 — Miscellaneous via Cash on 2026-06-13..." → row confirmed via aggregator → confirmation email verified in inbox (subject "Finance OS: Expense ৳10 logged (Miscellaneous)") → test row deleted by temp helper workflow, helper removed.
 - IF nodes use always-boolean expressions (`{{ $json.action === "log_transaction" }}`) — strict type validation errors on null/undefined left values otherwise.
+
+## Milestone 8 — DONE (`v0.8-full-dashboard`, 2026-06-13)
+
+- Built by Claude Code with Asim's OK (normally Antigravity's half): `components/accounts/AccountBalances.tsx` (negative balances now orange — fixed the M5-era inline list that rendered everything blue) and `components/assets/AssetMaturityTracker.tsx` (sorted by daysToMaturity with nulls last, amber ≤30 days, orange + AlertTriangle ≤7 days). Tracker shows on both the dashboard (Row 3) and the Assets tab.
+- Goals and Assets placeholder tabs replaced with real views (goal cards: progress bar, priority badge, saved/target/contribution in mono; three-state loading/error/data UX like the other views). `renderPlaceholderView` removed.
+- SafeToSpendCard was already wired to real metrics since M3 — verified. Responsive audit passed: grids stack to 1 col, tables `overflow-x-auto`, sidebar drawer, chat sheet full-width on mobile.
+- Verified locally on a prod build: page 200, real data (bKash −5,600 orange case, FDR 7 days out hits the urgent threshold).
 
 ## Verified 2026-06-12 (end of session)
 

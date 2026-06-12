@@ -179,10 +179,11 @@ git add . && git commit -m "Milestone 7: Chatbot logs transactions" && git tag v
 **Who:** Antigravity | **Tag:** `v0.8-full-dashboard`
 **Goal:** Complete financial picture on one screen.
 
-- [ ] Build `AccountBalances.tsx` — account list, balance in mono, blue/orange
-- [ ] Build `AssetMaturityTracker.tsx` — table, sorted by daysToMaturity, amber ≤30 days, orange ≤7 days
-- [ ] Wire `SafeToSpendCard.tsx` to real `metrics.safeToSpend` + `metrics.daysLeftInMonth`
-- [ ] Responsive layout audit — all sections readable on mobile
+- [x] Build `AccountBalances.tsx` — account list, balance in mono, blue/orange (fixes the M5-era bug where negative balances rendered blue; used in the dashboard sidebar card)
+- [x] Build `AssetMaturityTracker.tsx` — table, sorted by daysToMaturity (nulls last), amber ≤30 days, orange ≤7 days with warning icon; on the dashboard AND the Assets tab
+- [x] Wire `SafeToSpendCard.tsx` to real `metrics.safeToSpend` + `metrics.daysLeftInMonth` (was already wired in M3 — verified)
+- [x] Responsive layout audit — grids stack to 1 column on mobile, tables scroll horizontally (`overflow-x-auto`), sidebar collapses to drawer, chat sheet full-width on mobile
+- [x] Bonus: Goals tab placeholder replaced with real goal cards (progress bar, priority badge, saved/target/contribution in mono) — the page had promised this view for M8
 
 **Commit & tag when:** Dashboard shows accounts, assets, and safe-to-spend with real data.
 ```bash
