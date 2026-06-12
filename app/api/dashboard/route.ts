@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { DashboardData } from '@/lib/types'
+import { getDemoDashboard } from '@/lib/demo-data'
 
 // Proxy to n8n Workflow 1 (finance-data-aggregator). The webhook URL lives in
 // env vars only (Vercel dashboard / .env.local) — never in client-side code.
@@ -8,6 +9,11 @@ export const dynamic = 'force-dynamic'
 const TIMEOUT_MS = 10_000
 
 export async function GET() {
+  // Demo deployment: serve self-contained sample data, never touch n8n.
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    return NextResponse.json(getDemoDashboard())
+  }
+
   const url = process.env.N8N_DASHBOARD_WEBHOOK_URL
   if (!url) {
     return NextResponse.json(

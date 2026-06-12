@@ -75,6 +75,12 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - **Deferred (documented in MILESTONES):** `N8N_WEBHOOK_SECRET` — webhook auth was never implemented in any milestone; doing it right needs secret checks in 3 workflows without leaking the secret into exported JSONs. Post-launch hardening.
 - **Post-launch notes:** Sheet still holds Jan–Jun 2026 *sample* data — replace with real finances to start using it for real. Asim should eyeball the dashboard on his phone once.
 
+## Demo Deployment — IN PROGRESS (2026-06-13)
+
+- New `lib/demo-data.ts` + `NEXT_PUBLIC_DEMO_MODE` flag gate `/api/dashboard`, `/api/transactions`, `/api/chat` and `useTransactions` to serve self-contained sample data, canned chat replies, and no-persist transactions — documented in CLAUDE.md.
+- Plan: deploy a second Vercel project `finance-os-demo` from the same repo/branch with `NEXT_PUBLIC_DEMO_MODE=true` and no `N8N_*` vars, for sharing publicly (Upwork/portfolio) without exposing real finances.
+- Next: verify demo build + real build locally, then commit/push and create the second Vercel project.
+
 ## Verified 2026-06-12 (end of session)
 
 - End-to-end pipeline confirmed with a real edit: Asim added a ৳48,000 income row to the Sheet → dashboard recalculated income/net/safe-to-spend/balances correctly within the 60s poll. Sheet → n8n → API → SWR all live.

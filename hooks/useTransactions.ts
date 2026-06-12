@@ -97,6 +97,21 @@ export function useTransactions() {
       }
     }
 
+    // Demo deployment: apply the optimistic row directly to the cache and skip the
+    // POST + revalidation, so the new transaction stays visible until a hard refresh
+    // (which refetches the static sample data). Nothing is written anywhere.
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      try {
+        await mutate('/api/dashboard', updateDashboardCache, {
+          revalidate: false,
+          populateCache: true
+        })
+        return true
+      } finally {
+        setIsSubmitting(false)
+      }
+    }
+
     try {
       await mutate(
         '/api/dashboard',

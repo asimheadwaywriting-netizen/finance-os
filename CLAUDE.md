@@ -107,7 +107,11 @@ N8N_DASHBOARD_WEBHOOK_URL
 N8N_TRANSACTION_WEBHOOK_URL
 N8N_CHAT_WEBHOOK_URL
 N8N_WEBHOOK_SECRET
+NEXT_PUBLIC_DEMO_MODE   # only on the public demo project — see Demo Deployment below
 ```
+
+## Demo Deployment
+A second Vercel project (`finance-os-demo`) builds from the **same repo/branch** with one extra env var, `NEXT_PUBLIC_DEMO_MODE=true`, and **no** `N8N_*` vars. In demo mode the three API routes short-circuit to self-contained sample data (`lib/demo-data.ts`, sourced from `n8n/sample-dashboard-response.json` with time-sensitive fields recomputed): dashboard returns the sample, chat returns canned keyword replies (no OpenAI), transactions accept-without-writing, and `useTransactions` keeps the optimistic row until refresh. A "Demo — sample data" badge shows in the header. The real production project leaves the flag unset, so its behavior is unchanged.
 
 ## Data Contract — `lib/types.ts`
 This is the single source of truth for the shape of data flowing from n8n to the frontend. If this changes, update gemini.md immediately so Antigravity knows.

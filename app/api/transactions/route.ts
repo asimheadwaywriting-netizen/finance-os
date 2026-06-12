@@ -44,6 +44,12 @@ export async function POST(request: Request) {
     )
   }
 
+  // Demo deployment: accept the (valid) payload but never write to n8n/Sheets.
+  // The frontend keeps the optimistic row until a refresh restores sample data.
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    return NextResponse.json({ success: true, transaction: body })
+  }
+
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
 

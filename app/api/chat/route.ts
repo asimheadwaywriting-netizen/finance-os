@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { ChatMessage } from '@/lib/types'
+import { getDemoChatReply } from '@/lib/demo-data'
 
 // Proxy to n8n Workflow 3 (ai-chat-handler). The webhook URL lives in env
 // vars only (Vercel dashboard / .env.local) — never in client-side code.
@@ -11,6 +12,21 @@ const TIMEOUT_MS = 30_000
 const FALLBACK = { reply: 'AI temporarily unavailable. Please try again.' }
 
 export async function POST(request: Request) {
+  // Demo deployment: canned replies, no OpenAI call and no sheet writes.
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    let demoBody: { message?: string }
+    try {
+      demoBody = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+    return NextResponse.json({
+      reply: getDemoChatReply(demoBody.message || ''),
+      action: null,
+      transaction: null,
+    })
+  }
+
   const url = process.env.N8N_CHAT_WEBHOOK_URL
   if (!url) {
     return NextResponse.json(

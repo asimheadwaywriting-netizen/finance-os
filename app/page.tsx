@@ -22,6 +22,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 export default function Home() {
   const [activeView, setActiveView] = useState<string>('dashboard')
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false)
+  const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
   const { data, error, isLoading, mutate } = useDashboardData()
   const { addTransaction, isSubmitting: isTxSubmitting } = useTransactions()
 
@@ -401,7 +402,14 @@ export default function Home() {
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-medium tracking-tight text-white capitalize">{activeView}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-medium tracking-tight text-white capitalize">{activeView}</h2>
+              {isDemo && (
+                <span className="text-[10px] font-mono text-brand-warning bg-brand-warning/10 border border-brand-warning/20 px-2 py-0.5 rounded-full">
+                  Demo — sample data
+                </span>
+              )}
+            </div>
             <div className="text-[10px] font-mono text-gray-500">
               Last Synced: {new Date().toLocaleTimeString()}
             </div>
