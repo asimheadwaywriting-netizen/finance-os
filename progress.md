@@ -2,9 +2,9 @@
 
 Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this is the running log of what's actually live.
 
-## Current State (2026-06-12)
+## Current State (2026-06-13)
 
-**Progress: ~88% · Latest tag: `v0.5-transactions`**
+**Progress: ~92% · Latest tag: `v0.6-chat`**
 
 | What | Status |
 |------|--------|
@@ -40,12 +40,13 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - [x] **Antigravity UI half DONE (2026-06-12):** TransactionForm (all fields incl. Amount, accounts from live cache), TransactionList (category badges, color-coded amounts), useTransactions (optimistic cache patch with current-month guard, rollbackOnError). All 4 plan-review corrections verified in code by Claude Code.
 - [x] All 3 env vars in Vercel Production (dashboard, transaction, chat). Tagged `v0.5-transactions` 2026-06-12 — form + list + optimistic UI live in production.
 
-## Milestone 6 — Claude Code half DONE (2026-06-12)
+## Milestone 6 — DONE (`v0.6-chat`, 2026-06-13)
 
 - [x] **Workflow 3 `ai-chat-handler`** (ID `5RkSgctHtRNq3mIR`) live: webhook → fetches Workflow 1's pre-computed JSON → gpt-4o-mini (existing `OpenAi account` credential) with strict never-compute-numbers system prompt → parse intent → `{ reply, action, transaction }`.
 - [x] **`/api/chat`** real proxy: 30s timeout, graceful `"AI temporarily unavailable"` fallback (rendered as a normal AI bubble).
 - [x] Tested live: groceries question answered with correct ৳6,400; "log 500 taka transport on bKash" parsed to perfect action JSON (logging itself activates in Milestone 7).
-- [ ] **Antigravity:** ChatPanel.tsx (Sheet from right — the shell exists from M1, wire it for real), ChatMessage.tsx, ChatInput.tsx, useChat hook (history array, loading state, sendMessage). Contract documented in gemini.md. Tag `v0.6-chat` after.
+- [x] **Chat UI (2026-06-13, built by Claude Code with Asim's OK instead of Antigravity):** `hooks/useChat.ts` (messages seeded with welcome, last-10 history sent, fallback bubble on any failure), `components/chat/ChatMessage.tsx` (user right/blue tint, AI left/neutral), `ChatInput.tsx` (send disabled while loading or empty), `ChatPanel.tsx` (Sheet from right, auto-scroll to newest, `animate-pulse` "Thinking..." bubble — no spinner). Mock Sheet block removed from page.tsx.
+- [x] Verified before tagging: clean `npm run build`, then local prod server — "What did I spend on groceries this month?" → "You spent ৳6,400 on groceries this month." (correct).
 
 ## Verified 2026-06-12 (end of session)
 

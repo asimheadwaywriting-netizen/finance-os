@@ -147,11 +147,11 @@ git add . && git commit -m "Milestone 5: Transaction form + optimistic UI" && gi
 - [x] Build `app/api/chat/route.ts` — POST proxy, message + history, 30s timeout with graceful "AI temporarily unavailable" fallback
 - [x] Tested: "What did I spend on groceries this month?" → "You spent ৳6,400..." (correct); log intent → parsed action JSON with correct fields
 
-### Antigravity
-- [ ] Build `ChatPanel.tsx` — shadcn `Sheet`, slides in from right
-- [ ] Build `ChatMessage.tsx` — user (right, blue tint) vs AI (left, neutral)
-- [ ] Build `ChatInput.tsx` — input + send, disabled while loading
-- [ ] Build `hooks/useChat.ts` — history array, loading state, sendMessage()
+### Antigravity (built by Claude Code with Asim's authorization, 2026-06-13)
+- [x] Build `ChatPanel.tsx` — shadcn `Sheet`, slides in from right
+- [x] Build `ChatMessage.tsx` — user (right, blue tint) vs AI (left, neutral)
+- [x] Build `ChatInput.tsx` — input + send, disabled while loading
+- [x] Build `hooks/useChat.ts` — history array, loading state, sendMessage()
 
 **Commit & tag when:** Ask "What did I spend on food this month?" and get correct answer.
 ```bash

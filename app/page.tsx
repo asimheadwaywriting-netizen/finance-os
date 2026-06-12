@@ -14,14 +14,8 @@ import GoalsProgress from '@/components/charts/GoalsProgress'
 import TransactionForm from '@/components/transactions/TransactionForm'
 import TransactionList from '@/components/transactions/TransactionList'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle,
-  SheetDescription
-} from '@/components/ui/sheet'
-import { MessageSquare, Sparkles } from 'lucide-react'
+import ChatPanel from '@/components/chat/ChatPanel'
+import { Sparkles } from 'lucide-react'
 
 export default function Home() {
   const [activeView, setActiveView] = useState<string>('dashboard')
@@ -336,53 +330,8 @@ export default function Home() {
         </div>
       </AppShell>
 
-      {/* AI Assistant Sheet Drawer Shell */}
-      <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <SheetContent className="bg-card border-l border-white/10 text-gray-100 p-0 flex flex-col h-full w-full sm:max-w-md">
-          <SheetHeader className="p-6 border-b border-white/10">
-            <SheetTitle className="flex items-center gap-2 text-white">
-              <MessageSquare className="w-5 h-5 text-brand-income" />
-              <span>AI Assistant</span>
-            </SheetTitle>
-            <SheetDescription className="text-xs text-gray-500">
-              Ask questions about your budget or tell the AI to log transactions.
-            </SheetDescription>
-          </SheetHeader>
-
-          {/* Mock Chat Panel Content */}
-          <div className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
-            <div className="space-y-4">
-              {/* Canned AI Welcome Message */}
-              <div className="flex items-start gap-3 max-w-[85%]">
-                <div className="w-8 h-8 rounded-full bg-brand-income/10 border border-brand-income/20 flex items-center justify-center flex-shrink-0 text-brand-income">
-                  <span className="font-mono text-xs font-bold">AI</span>
-                </div>
-                <div className="p-3.5 rounded-2xl rounded-tl-none bg-white/5 border border-white/5 text-xs text-gray-300 leading-relaxed">
-                  {"Hi Asim! I'm your Finance OS Assistant. In Milestone 6, I'll be connected to OpenAI to answer budget queries and automatically log transactions."}
-                </div>
-              </div>
-            </div>
-
-            {/* Mock Chat Input */}
-            <div className="mt-6">
-              <div className="relative flex items-center">
-                <input 
-                  type="text" 
-                  disabled
-                  placeholder="Chat with AI... (Coming in Milestone 6)" 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-gray-400 focus:outline-none focus:border-brand-income/50 pr-10 cursor-not-allowed"
-                />
-                <button 
-                  disabled
-                  className="absolute right-2 p-1.5 rounded-lg bg-brand-income/25 text-white/50 cursor-not-allowed"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* AI Assistant chat drawer */}
+      <ChatPanel open={isChatOpen} onOpenChange={setIsChatOpen} />
     </>
   )
 }
