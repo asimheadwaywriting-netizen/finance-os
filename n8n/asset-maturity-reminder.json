@@ -1,0 +1,423 @@
+{
+  "updatedAt": "2026-06-12T18:41:22.386Z",
+  "createdAt": "2026-06-12T18:38:53.938Z",
+  "id": "kb8JQk0TwWg7uRWg",
+  "name": "asset-maturity-reminder",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "note1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ],
+      "parameters": {
+        "content": "## Asset Maturity Reminder (Workflow 6)\nDaily 9am (Asia/Dhaka): sends ONLY if any asset matures within 7 days (daysToMaturity 0-7 from Workflow 1).",
+        "height": 220,
+        "width": 520,
+        "color": 4
+      }
+    },
+    {
+      "id": "sched1",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "http1",
+      "name": "Fetch Dashboard Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        90
+      ],
+      "parameters": {
+        "url": "https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "code1",
+      "name": "Build Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        90
+      ],
+      "parameters": {
+        "jsCode": "\nlet force = false;\ntry { force = String($('Manual Test Trigger').first().json.query.force) === 'true'; } catch (e) { force = false; }\nconst d = $json;\nconst m = d.metrics || {};\nconst taka = function (n) {\n  n = Number(n) || 0;\n  // Manual Indian-style grouping (12,34,567) — the n8n sandbox's\n  // toLocaleString('en-IN') is unreliable (partial ICU).\n  const s = String(Math.round(Math.abs(n)));\n  const grouped = s.length > 3\n    ? s.slice(0, -3).replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',') + ',' + s.slice(-3)\n    : s;\n  return (n < 0 ? '-' : '') + '\\u09f3' + grouped;\n};\n\nconst assets = d.assets || [];\nconst soon = assets.filter(function (a) {\n  return a.daysToMaturity !== null && a.daysToMaturity >= 0 && a.daysToMaturity <= 7;\n});\nconst send = soon.length > 0;\nconst forced = force && !send;\nconst list = send ? soon : assets;\nconst subject = send\n  ? 'Finance OS: ' + soon.length + ' asset' + (soon.length === 1 ? '' : 's') + ' maturing within 7 days'\n  : 'Finance OS: no assets maturing within 7 days';\nconst lines = [send ? 'Assets maturing within 7 days:' : 'All assets (none within 7 days):', ''];\nfor (const a of list) {\n  lines.push(\n    '- ' + a.name + ' (' + a.type + ', ' + a.institution + '): ' + taka(a.value) +\n    ' at ' + a.interestRate + '%' +\n    (a.maturityDate ? ' \\u2014 matures ' + a.maturityDate + ' (' + a.daysToMaturity + ' days)' : ' \\u2014 no maturity date')\n  );\n}\n\nif (forced) lines.push('', '(sent by manual test trigger \\u2014 the normal condition was not met)');\nlines.push('', 'Dashboard: https://finance-os-eight-delta.vercel.app/');\nreturn [{ json: { send: send || force, forced: forced, subject: subject, body: lines.join('\\n') } }];\n"
+      }
+    },
+    {
+      "id": "if1",
+      "name": "Should Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        90
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.send === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gmail1",
+      "name": "Send Alert Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "sendTo": "asim.headwaywriting@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0KVFYj5t0Jons8bA",
+          "name": "Gmail account"
+        }
+      },
+      "webhookId": "0b807039-919b-4bfb-8ff5-48785908925f"
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Dashboard Data": {
+      "main": [
+        [
+          {
+            "node": "Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email": {
+      "main": [
+        [
+          {
+            "node": "Should Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka",
+    "errorWorkflow": "17zUtE9de19ejvvA",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "1b97c654-54ec-4366-8029-5b67caa21754",
+  "activeVersionId": "1b97c654-54ec-4366-8029-5b67caa21754",
+  "versionCounter": 10,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-12T18:38:53.943Z",
+      "createdAt": "2026-06-12T18:38:53.943Z",
+      "role": "workflow:owner",
+      "workflowId": "kb8JQk0TwWg7uRWg",
+      "projectId": "WmvPfEaxd3Xp7T39",
+      "project": {
+        "updatedAt": "2026-02-28T09:18:59.607Z",
+        "createdAt": "2026-02-28T09:18:48.509Z",
+        "id": "WmvPfEaxd3Xp7T39",
+        "name": "Khondoker Arman <asim.headwaywriting@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-12T18:41:22.387Z",
+    "createdAt": "2026-06-12T18:41:22.387Z",
+    "versionId": "1b97c654-54ec-4366-8029-5b67caa21754",
+    "workflowId": "kb8JQk0TwWg7uRWg",
+    "nodes": [
+      {
+        "id": "note1",
+        "name": "Overview",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -80,
+          -260
+        ],
+        "parameters": {
+          "content": "## Asset Maturity Reminder (Workflow 6)\nDaily 9am (Asia/Dhaka): sends ONLY if any asset matures within 7 days (daysToMaturity 0-7 from Workflow 1).",
+          "height": 220,
+          "width": 520,
+          "color": 4
+        }
+      },
+      {
+        "id": "sched1",
+        "name": "Schedule",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "daysInterval": 1,
+                "triggerAtHour": 9,
+                "triggerAtMinute": 0
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "http1",
+        "name": "Fetch Dashboard Data",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          220,
+          90
+        ],
+        "parameters": {
+          "url": "https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard",
+          "options": {
+            "timeout": 15000
+          }
+        }
+      },
+      {
+        "id": "code1",
+        "name": "Build Email",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          90
+        ],
+        "parameters": {
+          "jsCode": "\nlet force = false;\ntry { force = String($('Manual Test Trigger').first().json.query.force) === 'true'; } catch (e) { force = false; }\nconst d = $json;\nconst m = d.metrics || {};\nconst taka = function (n) {\n  n = Number(n) || 0;\n  // Manual Indian-style grouping (12,34,567) — the n8n sandbox's\n  // toLocaleString('en-IN') is unreliable (partial ICU).\n  const s = String(Math.round(Math.abs(n)));\n  const grouped = s.length > 3\n    ? s.slice(0, -3).replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',') + ',' + s.slice(-3)\n    : s;\n  return (n < 0 ? '-' : '') + '\\u09f3' + grouped;\n};\n\nconst assets = d.assets || [];\nconst soon = assets.filter(function (a) {\n  return a.daysToMaturity !== null && a.daysToMaturity >= 0 && a.daysToMaturity <= 7;\n});\nconst send = soon.length > 0;\nconst forced = force && !send;\nconst list = send ? soon : assets;\nconst subject = send\n  ? 'Finance OS: ' + soon.length + ' asset' + (soon.length === 1 ? '' : 's') + ' maturing within 7 days'\n  : 'Finance OS: no assets maturing within 7 days';\nconst lines = [send ? 'Assets maturing within 7 days:' : 'All assets (none within 7 days):', ''];\nfor (const a of list) {\n  lines.push(\n    '- ' + a.name + ' (' + a.type + ', ' + a.institution + '): ' + taka(a.value) +\n    ' at ' + a.interestRate + '%' +\n    (a.maturityDate ? ' \\u2014 matures ' + a.maturityDate + ' (' + a.daysToMaturity + ' days)' : ' \\u2014 no maturity date')\n  );\n}\n\nif (forced) lines.push('', '(sent by manual test trigger \\u2014 the normal condition was not met)');\nlines.push('', 'Dashboard: https://finance-os-eight-delta.vercel.app/');\nreturn [{ json: { send: send || force, forced: forced, subject: subject, body: lines.join('\\n') } }];\n"
+        }
+      },
+      {
+        "id": "if1",
+        "name": "Should Send?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          660,
+          90
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.send === true }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "gmail1",
+        "name": "Send Alert Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          880,
+          0
+        ],
+        "parameters": {
+          "sendTo": "asim.headwaywriting@gmail.com",
+          "subject": "={{ $json.subject }}",
+          "emailType": "text",
+          "message": "={{ $json.body }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "0KVFYj5t0Jons8bA",
+            "name": "Gmail account"
+          }
+        },
+        "webhookId": "0b807039-919b-4bfb-8ff5-48785908925f"
+      }
+    ],
+    "connections": {
+      "Schedule": {
+        "main": [
+          [
+            {
+              "node": "Fetch Dashboard Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch Dashboard Data": {
+        "main": [
+          [
+            {
+              "node": "Build Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Email": {
+        "main": [
+          [
+            {
+              "node": "Should Send?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Should Send?": {
+        "main": [
+          [
+            {
+              "node": "Send Alert Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Khondoker Arman",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-12T18:41:22.435Z",
+        "id": 508,
+        "workflowId": "kb8JQk0TwWg7uRWg",
+        "versionId": "1b97c654-54ec-4366-8029-5b67caa21754",
+        "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      },
+      {
+        "createdAt": "2026-06-12T18:41:22.423Z",
+        "id": 507,
+        "workflowId": "kb8JQk0TwWg7uRWg",
+        "versionId": "1b97c654-54ec-4366-8029-5b67caa21754",
+        "event": "deactivated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    ]
+  }
+}

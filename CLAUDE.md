@@ -53,7 +53,11 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 - **Google Sheet:** `Finance OS` — spreadsheet ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` (4 tabs seeded with Jan–Jun 2026 sample data)
 - **Workflow 1:** `finance-data-aggregator` — n8n workflow ID `8GejOtDtsht0CfEJ`, active
 - **Workflow 2:** `transaction-logger` — n8n workflow ID `WwmlYYISq5buXPYx`, active (validate incl. payee → append; 400 + error list on invalid, nothing written)
-- **Workflow 3:** `ai-chat-handler` — n8n workflow ID `5RkSgctHtRNq3mIR`, active (fetch Workflow 1 JSON → gpt-4o-mini → parse intent → `{ reply, action, transaction }`)
+- **Workflow 3:** `ai-chat-handler` — n8n workflow ID `5RkSgctHtRNq3mIR`, active (fetch Workflow 1 JSON → gpt-4o-mini → parse intent → `{ reply, action, transaction }`; M7: log_transaction → Workflow 2 → Gmail confirmation after the webhook response)
+- **Workflow 4:** `weekly-safe-to-spend-alert` — ID `9Ximk7fsIvpL5gYx`, active (Mon 8am Asia/Dhaka, always sends)
+- **Workflow 5:** `budget-warning-alert` — ID `IJJC0nVE6XyQQBAo`, active (daily 12pm; sends if month expenses ≥80% of income — no per-category budgets exist in the Sheet, so the threshold applies to the total)
+- **Workflow 6:** `asset-maturity-reminder` — ID `kb8JQk0TwWg7uRWg`, active (daily 9am; sends if any asset matures within 7 days)
+- **Workflow 7:** `end-of-month-summary` — ID `LuDfz4YRFqRTjz8M`, active (cron 6pm days 28–31; Code node sends only on the actual last day; full P&L)
 - **Webhook:** `GET https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` → returns `DashboardData`
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` → `{ success, transaction }` or 400 `{ success: false, error }`
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-chat` → `{ reply, action, transaction }`

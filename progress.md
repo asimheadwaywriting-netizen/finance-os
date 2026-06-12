@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-13)
 
-**Progress: ~96% · Latest tag: `v0.8-full-dashboard`**
+**Progress: ~98% · Latest tag: `v0.9-alerts`**
 
 | What | Status |
 |------|--------|
@@ -60,6 +60,13 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - Goals and Assets placeholder tabs replaced with real views (goal cards: progress bar, priority badge, saved/target/contribution in mono; three-state loading/error/data UX like the other views). `renderPlaceholderView` removed.
 - SafeToSpendCard was already wired to real metrics since M3 — verified. Responsive audit passed: grids stack to 1 col, tables `overflow-x-auto`, sidebar drawer, chat sheet full-width on mobile.
 - Verified locally on a prod build: page 200, real data (bKash −5,600 orange case, FDR 7 days out hits the urgent threshold).
+
+## Milestone 9 — DONE (`v0.9-alerts`, 2026-06-13)
+
+- **All 4 scheduled Gmail alert workflows live** (scripted in `n8n/deploy-milestone9.js`, JSONs exported): WF4 `weekly-safe-to-spend-alert` (Mon 8am, always sends), WF5 `budget-warning-alert` (daily 12pm), WF6 `asset-maturity-reminder` (daily 9am, ≤7-day filter), WF7 `end-of-month-summary` (cron 6pm days 28–31, Code node gates to the actual last day). All share the same shape: Schedule → fetch Workflow 1's pre-computed JSON → Code builds email + send decision → IF → Gmail. All have the global error handler set as `errorWorkflow`.
+- **Decision:** no per-category budget amounts exist anywhere in the Sheet (4 tabs only), so WF5's 80% threshold (from `lib/constants.ts`) applies to total month expenses vs income. If a Budgets tab is ever added, extend Workflow 1 + WF5.
+- **Tested before activating schedules:** each workflow carried a temporary `?force=true` GET webhook; all 4 fired, all 4 emails verified in the inbox (incl. real triggers: FDR at exactly 7 days to maturity sent naturally). Test triggers stripped afterwards.
+- **Gotchas:** the n8n Code sandbox's `toLocaleString('en-IN')` produces broken grouping (partial ICU) — replaced with a manual Indian-grouping regex. Also: Gmail's *snippet* strips commas from numbers, which made the fix look like it hadn't worked — always check `plaintextBody`, not the snippet.
 
 ## Verified 2026-06-12 (end of session)
 

@@ -196,13 +196,13 @@ git add . && git commit -m "Milestone 8: Full dashboard picture" && git tag v0.8
 **Who:** Claude Code | **Tag:** `v0.9-alerts`
 **Goal:** All 4 email types arrive in inbox.
 
-- [ ] In n8n: create Gmail OAuth2 credential
-- [ ] Build Workflow 4 (`weekly-safe-to-spend-alert`) — Mon 8am schedule
-- [ ] Build Workflow 5 (`budget-warning-alert`) — daily 12pm, threshold check
-- [ ] Build Workflow 6 (`asset-maturity-reminder`) — daily 9am, 7-day filter
-- [ ] Build Workflow 7 (`end-of-month-summary`) — last day 6pm, full P&L
-- [ ] Test each manually before activating schedules
-- [ ] Activate all schedules
+- [x] ~~In n8n: create Gmail OAuth2 credential~~ → reused existing `Gmail account` credential (ID `0KVFYj5t0Jons8bA`, already used by M7's confirmation email)
+- [x] Build Workflow 4 (`weekly-safe-to-spend-alert`) — Mon 8am schedule — ID `9Ximk7fsIvpL5gYx`
+- [x] Build Workflow 5 (`budget-warning-alert`) — daily 12pm, threshold check — ID `IJJC0nVE6XyQQBAo` (no per-category budgets exist in the Sheet → 80% threshold applies to month expenses vs income)
+- [x] Build Workflow 6 (`asset-maturity-reminder`) — daily 9am, 7-day filter — ID `kb8JQk0TwWg7uRWg`
+- [x] Build Workflow 7 (`end-of-month-summary`) — 6pm cron days 28–31, Code node gates to the actual last day — ID `LuDfz4YRFqRTjz8M`
+- [x] Test each manually before activating schedules — temporary `?force=true` GET webhooks fired all 4; all 4 emails verified in inbox; test triggers removed after
+- [x] Activate all schedules — all 4 active (`deploy-milestone9.js`)
 
 **Commit & tag when:** All 4 email types received in asim.headwaywriting@gmail.com.
 ```bash
