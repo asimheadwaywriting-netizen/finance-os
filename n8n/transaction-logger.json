@@ -1,0 +1,446 @@
+{
+  "updatedAt": "2026-06-12T07:10:34.147Z",
+  "createdAt": "2026-06-12T07:10:34.147Z",
+  "id": "WwmlYYISq5buXPYx",
+  "name": "transaction-logger",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "note1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -280
+      ],
+      "parameters": {
+        "content": "## Transaction Logger (Workflow 2)\nCalled by the dashboard via POST /api/transactions. Validates the transaction (all fields incl. payee, positive amount, YYYY-MM-DD date) and appends it to the Transactions tab of the Finance OS Google Sheet.\n\nInvalid payloads get a 400 with the list of problems — nothing is written.",
+        "height": 240,
+        "width": 520,
+        "color": 4
+      }
+    },
+    {
+      "id": "wh1",
+      "name": "New Transaction Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance-transaction",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "596f6dcb-98d4-41ec-9cad-bdcfc86c12e7"
+    },
+    {
+      "id": "code1",
+      "name": "Validate Transaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst errors = [];\nconst required = ['date', 'type', 'category', 'payee', 'amount', 'account'];\nfor (const f of required) {\n  if (b[f] === undefined || b[f] === null || b[f] === '') errors.push('missing field: ' + f);\n}\nif (errors.length === 0) {\n  if (b.type !== 'Income' && b.type !== 'Expense') errors.push('type must be Income or Expense');\n  const amt = Number(b.amount);\n  if (!isFinite(amt) || amt <= 0) errors.push('amount must be a positive number');\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(b.date))) errors.push('date must be YYYY-MM-DD');\n}\nconst tx = {\n  date: String(b.date || ''),\n  type: String(b.type || ''),\n  category: String(b.category || ''),\n  payee: String(b.payee || ''),\n  amount: Number(b.amount) || 0,\n  account: String(b.account || ''),\n  note: String(b.note || '')\n};\nreturn [{ json: { valid: errors.length === 0, errors: errors, tx: tx } }];"
+      }
+    },
+    {
+      "id": "if1",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http1",
+      "name": "Append to Transactions Tab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/Transactions!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ values: [[ $json.tx.date, $json.tx.type, $json.tx.category, $json.tx.payee, $json.tx.amount, $json.tx.account, $json.tx.note ]] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "eo7uMjjFUzvjTAGi",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "resp1",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, transaction: $('Validate Transaction').first().json.tx }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "resp2",
+      "name": "Respond Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.errors.join(\"; \") }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Transaction Request": {
+      "main": [
+        [
+          {
+            "node": "Validate Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Transaction": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Append to Transactions Tab",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Transactions Tab": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "61a4d272-ef95-4320-8462-8fe1779461b6",
+  "activeVersionId": "61a4d272-ef95-4320-8462-8fe1779461b6",
+  "versionCounter": 3,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-12T07:10:34.151Z",
+      "createdAt": "2026-06-12T07:10:34.151Z",
+      "role": "workflow:owner",
+      "workflowId": "WwmlYYISq5buXPYx",
+      "projectId": "WmvPfEaxd3Xp7T39",
+      "project": {
+        "updatedAt": "2026-02-28T09:18:59.607Z",
+        "createdAt": "2026-02-28T09:18:48.509Z",
+        "id": "WmvPfEaxd3Xp7T39",
+        "name": "Khondoker Arman <asim.headwaywriting@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-12T07:10:34.155Z",
+    "createdAt": "2026-06-12T07:10:34.155Z",
+    "versionId": "61a4d272-ef95-4320-8462-8fe1779461b6",
+    "workflowId": "WwmlYYISq5buXPYx",
+    "nodes": [
+      {
+        "id": "note1",
+        "name": "Overview",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -80,
+          -280
+        ],
+        "parameters": {
+          "content": "## Transaction Logger (Workflow 2)\nCalled by the dashboard via POST /api/transactions. Validates the transaction (all fields incl. payee, positive amount, YYYY-MM-DD date) and appends it to the Transactions tab of the Finance OS Google Sheet.\n\nInvalid payloads get a 400 with the list of problems — nothing is written.",
+          "height": 240,
+          "width": 520,
+          "color": 4
+        }
+      },
+      {
+        "id": "wh1",
+        "name": "New Transaction Request",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "finance-transaction",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "596f6dcb-98d4-41ec-9cad-bdcfc86c12e7"
+      },
+      {
+        "id": "code1",
+        "name": "Validate Transaction",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const b = $json.body || {};\nconst errors = [];\nconst required = ['date', 'type', 'category', 'payee', 'amount', 'account'];\nfor (const f of required) {\n  if (b[f] === undefined || b[f] === null || b[f] === '') errors.push('missing field: ' + f);\n}\nif (errors.length === 0) {\n  if (b.type !== 'Income' && b.type !== 'Expense') errors.push('type must be Income or Expense');\n  const amt = Number(b.amount);\n  if (!isFinite(amt) || amt <= 0) errors.push('amount must be a positive number');\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(b.date))) errors.push('date must be YYYY-MM-DD');\n}\nconst tx = {\n  date: String(b.date || ''),\n  type: String(b.type || ''),\n  category: String(b.category || ''),\n  payee: String(b.payee || ''),\n  amount: Number(b.amount) || 0,\n  account: String(b.account || ''),\n  note: String(b.note || '')\n};\nreturn [{ json: { valid: errors.length === 0, errors: errors, tx: tx } }];"
+        }
+      },
+      {
+        "id": "if1",
+        "name": "Is Valid?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.valid }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "http1",
+        "name": "Append to Transactions Tab",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          660,
+          -100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/Transactions!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ values: [[ $json.tx.date, $json.tx.type, $json.tx.category, $json.tx.payee, $json.tx.amount, $json.tx.account, $json.tx.note ]] }) }}",
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "eo7uMjjFUzvjTAGi",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "resp1",
+        "name": "Respond Success",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          880,
+          -100
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: true, transaction: $('Validate Transaction').first().json.tx }) }}",
+          "options": {}
+        }
+      },
+      {
+        "id": "resp2",
+        "name": "Respond Validation Error",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          660,
+          120
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: false, error: $json.errors.join(\"; \") }) }}",
+          "options": {
+            "responseCode": 400
+          }
+        }
+      }
+    ],
+    "connections": {
+      "New Transaction Request": {
+        "main": [
+          [
+            {
+              "node": "Validate Transaction",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Transaction": {
+        "main": [
+          [
+            {
+              "node": "Is Valid?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Valid?": {
+        "main": [
+          [
+            {
+              "node": "Append to Transactions Tab",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond Validation Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Append to Transactions Tab": {
+        "main": [
+          [
+            {
+              "node": "Respond Success",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Khondoker Arman",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-12T07:10:34.859Z",
+        "id": 487,
+        "workflowId": "WwmlYYISq5buXPYx",
+        "versionId": "61a4d272-ef95-4320-8462-8fe1779461b6",
+        "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    ]
+  }
+}

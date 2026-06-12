@@ -137,7 +137,7 @@ interface DashboardData {
 | Endpoint | Method | Purpose | n8n webhook behind it |
 |----------|--------|---------|----------------------|
 | `GET /api/dashboard` | GET | Full dashboard data (polls every 60s) | `https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` ✅ LIVE |
-| `POST /api/transactions` | POST | Log a new transaction | not built yet (Milestone 5) |
+| `POST /api/transactions` | POST | Log a new transaction | `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` ✅ LIVE |
 | `POST /api/chat` | POST | Send message to AI assistant | not built yet (Milestone 6) |
 
 ## Sample API Response (real data from the live n8n webhook)
@@ -173,6 +173,19 @@ Full response saved at `n8n/sample-dashboard-response.json`. Trimmed sample (cap
 ```
 
 Note: `safeToSpend` = current month net minus total planned goal contributions. `accountBalances` can go negative (bKash above) — render negatives in orange.
+
+## POST /api/transactions contract (for TransactionForm + useTransactions)
+
+Request body (all fields required except `note`):
+```json
+{ "date": "2026-06-12", "type": "Expense", "category": "Groceries", "payee": "Shwapno", "amount": 850, "account": "bKash", "note": "optional" }
+```
+Responses:
+- `200` → `{ "success": true, "transaction": { ...echoed normalized tx } }`
+- `400` → `{ "success": false, "error": "amount must be a positive number" }` (validation — show inline, rollback optimistic row)
+- `503` → `{ "error": "Transaction service unavailable" }` (n8n down — show ErrorBanner-style message, rollback optimistic row)
+
+Validation enforced server-side: type must be `Income`/`Expense`, amount positive number, date `YYYY-MM-DD`, payee required.
 
 ## Component List to Build
 

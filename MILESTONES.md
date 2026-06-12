@@ -120,9 +120,9 @@ git add . && git commit -m "Milestone 4: Charts live" && git tag v0.4-charts && 
 **Goal:** Submit a transaction → appears instantly in list → row in Google Sheets.
 
 ### Claude Code
-- [ ] Build Workflow 2 (`transaction-logger`): Webhook → validate (incl. `payee`) → Sheets append → Respond
-- [ ] Build `app/api/transactions/route.ts` — POST proxy to n8n, try/catch
-- [ ] Test: POST to `/api/transactions` adds row to Sheets
+- [x] Build Workflow 2 (`transaction-logger`): Webhook → validate (incl. `payee`) → Sheets append → Respond — ID `WwmlYYISq5buXPYx`, active
+- [x] Build `app/api/transactions/route.ts` — POST proxy to n8n, try/catch + 10s timeout, passes n8n 400s through
+- [x] Test: POST to `/api/transactions` adds row to Sheets (tested + auto-cleaned via `n8n/deploy-milestone5.js`; validation paths tested through local route)
 
 ### Antigravity
 - [ ] Build `TransactionForm.tsx` — dropdowns for type/category/account, date picker, + Payee text input

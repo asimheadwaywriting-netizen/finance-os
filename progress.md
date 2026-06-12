@@ -32,10 +32,13 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 - Antigravity built SpendingByCategory (horizontal bar, CATEGORY_COLORS + gray fallback), MonthlyTrend (blue/orange 2-line), GoalsProgress (progressPct bars, amber #f59e0b reference line at 80%, domain [0,100]); shared dark chart config, ৳ tooltips, skeletons. Verified against gemini.md spec by Claude Code.
 
-## Next Up — Milestone 5 (`v0.5-transactions`, both agents)
+## Milestone 5 — Claude Code half DONE (2026-06-12)
 
-- **Claude Code first:** build n8n Workflow 2 (`transaction-logger`: webhook → validate incl. payee → Sheets append → respond) + real `/api/transactions` proxy + `N8N_TRANSACTION_WEBHOOK_URL` env var (Vercel + .env.local).
-- **Then Antigravity:** TransactionForm.tsx (type/category/account dropdowns + payee input + date picker), TransactionList.tsx, useTransactions hook with optimistic UI + rollback.
+- [x] **Workflow 2 `transaction-logger`** (ID `WwmlYYISq5buXPYx`) live: POST webhook → validate (required fields incl. payee, Income/Expense type, positive amount, YYYY-MM-DD date) → Sheets append (RAW) → respond. 400 + error list on invalid, nothing written.
+- [x] **`/api/transactions`** is a real proxy now: cheap missing-field pre-check, 10s timeout, n8n 400s passed through, 503 if n8n unreachable.
+- [x] Tested end-to-end by script (`n8n/deploy-milestone5.js`): invalid → 400; valid → row in Sheet, visible via aggregator; test row auto-deleted by temp helper workflow.
+- [ ] **ASIM:** add `N8N_TRANSACTION_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` in Vercel → finance-os → Settings → Environments → Production (same place as last time).
+- [ ] **Antigravity:** TransactionForm.tsx (type/category/account dropdowns + payee input + date picker, uses `categoriesForType()` from lib/constants), TransactionList.tsx (last 10, color-coded amounts), useTransactions hook with optimistic UI + rollback on 4xx/5xx. API contract documented in gemini.md. Tag `v0.5-transactions` after.
 
 ## Verified 2026-06-12 (end of session)
 
