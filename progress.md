@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-12)
 
-**Progress: ~55% · Latest tag: `v0.2-n8n-sheets`**
+**Progress: ~65% · Latest tag: `v0.3-live-data`**
 
 | What | Status |
 |------|--------|
@@ -22,10 +22,15 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - **2026-06-12 — Milestone 2** (`v0.2-n8n-sheets`): Google Sheet created + seeded via temporary n8n helper workflow (scripted in `n8n/deploy-milestone2.js`); Workflow 1 live — webhook → Sheets `batchGet` (all 4 tabs, 1 call) → Code node math → respond. Tested: June metrics income 103,000 / expenses 33,400 / safeToSpend 34,600; FDR maturing in 8 days flagged correctly.
 - **2026-06-12 — Provider switch**: DeepSeek → OpenAI everywhere (docs, comments, live workflow sticky note). No architecture change.
 
-## Next Up — Milestone 3 (`v0.3-live-data`)
+## Milestone 3 — DONE (`v0.3-live-data`, 2026-06-12)
 
-- [x] **Claude Code half DONE (2026-06-12):** `/api/dashboard` now proxies the n8n webhook (try/catch, 10s AbortController, 503 on failure). `N8N_DASHBOARD_WEBHOOK_URL` set in Vercel Production by Asim + `.env.local` for local dev. Tested locally: returns live Sheets data (income 103,000 / expenses 33,400).
-- [ ] **Antigravity:** `hooks/useDashboardData.ts` (SWR, 60s refresh, keepPreviousData), wire MetricGrid to live data, ErrorBanner on 503, skeletons. Tag `v0.3-live-data` after this.
+- **Claude Code:** `/api/dashboard` proxies the n8n webhook (try/catch, 10s AbortController, 503 on failure). `N8N_DASHBOARD_WEBHOOK_URL` in Vercel Production + `.env.local` locally.
+- **Antigravity:** `hooks/useDashboardData.ts` (SWR, 60s polling, keepPreviousData), three-state UX in page.tsx (skeletons on first load / normal / ErrorBanner above stale data on refresh failure, centered banner + retry on first-load failure).
+- **Also fixed:** transparent AI Assistant Sheet panel — shadcn token colors (bg-card/bg-popover) were never mapped in tailwind.config.ts on Tailwind v3, so the classes generated no CSS.
+
+## Next Up — Milestone 4 (`v0.4-charts`, Antigravity only)
+
+- `npm install recharts`; build SpendingByCategory (horizontal bar, CATEGORY_COLORS), MonthlyTrend (2-line chart), GoalsProgress (bar + 80% reference line); shared chart config from gemini.md; all in ResponsiveContainer.
 
 ## Notes / Decisions
 

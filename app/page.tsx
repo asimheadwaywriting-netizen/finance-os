@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import AppShell from '@/components/layout/AppShell'
 import MetricGrid from '@/components/dashboard/MetricGrid'
 import SafeToSpendCard from '@/components/dashboard/SafeToSpendCard'
 import ErrorBanner from '@/components/dashboard/ErrorBanner'
-import type { DashboardData } from '@/lib/types'
+import { useDashboardData } from '@/hooks/useDashboardData'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { 
@@ -19,55 +19,75 @@ import { MessageSquare, Sparkles } from 'lucide-react'
 
 export default function Home() {
   const [activeView, setActiveView] = useState<string>('dashboard')
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false)
-
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetch('/api/dashboard')
-      if (!response.ok) {
-        if (response.status === 503) {
-          throw new Error("503: Service Unavailable. The backend integration (n8n Webhook) is not connected.")
-        }
-        throw new Error(`Failed to fetch dashboard data: ${response.statusText}`)
-      }
-      const jsonData: DashboardData = await response.json()
-      setData(jsonData)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
+  const { data, error, isLoading, mutate } = useDashboardData()
 
   const renderDashboardView = () => {
-    if (error) {
-      return <ErrorBanner message={error} onRetry={fetchData} />
+    const hasError = !!error
+
+    // State 3 (part A): error + NO data (first load failed) -> show ErrorBanner only
+    if (hasError && !data) {
+      return <ErrorBanner message={error.message} onRetry={mutate} />
     }
 
+    // State 1: loading + no data -> show skeletons
+    if (isLoading || !data) {
+      return (
+        <div className="space-y-6">
+          <SafeToSpendCard loading={true} />
+          <MetricGrid loading={true} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 h-[320px] flex flex-col justify-between">
+                <div>
+                  <h4 className="font-sans font-medium text-sm text-white mb-2">Monthly Cash Flow Trend</h4>
+                  <Skeleton className="h-4 w-32 bg-white/5" />
+                </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-full bg-white/5" />
+                  <Skeleton className="h-[140px] w-full bg-white/5" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 h-[320px] flex flex-col justify-between">
+                <div>
+                  <h4 className="font-sans font-medium text-sm text-white mb-2">Accounts & Balances</h4>
+                  <Skeleton className="h-4 w-32 bg-white/5" />
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-full bg-white/5" />
+                  <Skeleton className="h-10 w-full bg-white/5" />
+                  <Skeleton className="h-10 w-full bg-white/5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )
+    }
+
+    // State 2: data + no error -> normal dashboard
+    // State 3 (part B): error + stale data -> ErrorBanner on top + stale data visible below
     return (
       <div className="space-y-6">
+        {hasError && (
+          <ErrorBanner message={error.message} onRetry={mutate} />
+        )}
+
         {/* Top Prominent Safe To Spend */}
         <SafeToSpendCard 
-          safeToSpend={data?.metrics.safeToSpend} 
-          daysLeft={data?.metrics.daysLeftInMonth} 
-          loading={loading}
+          safeToSpend={data.metrics.safeToSpend} 
+          daysLeft={data.metrics.daysLeftInMonth} 
+          loading={false}
         />
 
         {/* 4-Column Grid of Metrics */}
         <MetricGrid 
-          data={data?.metrics} 
-          trend={data?.monthlyTrend} 
-          accounts={data?.accountBalances}
-          loading={loading}
+          data={data.metrics} 
+          trend={data.monthlyTrend} 
+          accounts={data.accountBalances}
+          loading={false}
         />
 
         {/* Structured Grid Placeholders for Next Milestones */}
@@ -83,20 +103,13 @@ export default function Home() {
                 <p className="text-xs text-gray-500">Visualization of monthly income vs expenses</p>
               </div>
 
-              {loading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-4 w-full bg-white/5" />
-                  <Skeleton className="h-[140px] w-full bg-white/5" />
+              <div className="flex flex-col items-center justify-center flex-1 text-center py-6 border border-dashed border-white/5 rounded-lg bg-white/[0.01]">
+                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-gray-400 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-5 h-5 text-brand-income" />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center flex-1 text-center py-6 border border-dashed border-white/5 rounded-lg bg-white/[0.01]">
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-gray-400 group-hover:scale-105 transition-transform">
-                    <Sparkles className="w-5 h-5 text-brand-income" />
-                  </div>
-                  <h5 className="text-sm font-medium text-white mb-1">Visualizing Trends</h5>
-                  <p className="text-xs text-gray-500 max-w-sm">Recharts component showing monthly trends will render here in Milestone 4.</p>
-                </div>
-              )}
+                <h5 className="text-sm font-medium text-white mb-1">Visualizing Trends</h5>
+                <p className="text-xs text-gray-500 max-w-sm">Recharts component showing monthly trends will render here in Milestone 4.</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -111,24 +124,16 @@ export default function Home() {
                 <p className="text-xs text-gray-500">Breakdown of current asset allocations</p>
               </div>
 
-              {loading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-10 w-full bg-white/5" />
-                  <Skeleton className="h-10 w-full bg-white/5" />
-                  <Skeleton className="h-10 w-full bg-white/5" />
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto space-y-3 mt-4">
-                  {data?.accountBalances.map((acc, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-white/5 border border-white/5">
-                      <span className="text-xs font-medium text-gray-300">{acc.name}</span>
-                      <span className="text-xs font-mono font-semibold text-brand-income">
-                        {acc.balance >= 0 ? '+' : ''}৳{acc.balance.toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="flex-1 overflow-y-auto space-y-3 mt-4">
+                {data.accountBalances.map((acc, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-white/5 border border-white/5">
+                    <span className="text-xs font-medium text-gray-300">{acc.name}</span>
+                    <span className="text-xs font-mono font-semibold text-brand-income">
+                      {acc.balance >= 0 ? '+' : ''}৳{acc.balance.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>

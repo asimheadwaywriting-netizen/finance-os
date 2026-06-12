@@ -85,10 +85,10 @@ git add . && git commit -m "Milestone 2: n8n reads Sheets" && git tag v0.2-n8n-s
 - [x] `N8N_DASHBOARD_WEBHOOK_URL` set in Vercel (Production) + `.env.local` for local dev
 
 ### Antigravity
-- [ ] Build `hooks/useDashboardData.ts` — SWR, `refreshInterval: 60000`, `keepPreviousData: true`
-- [ ] Wire `MetricGrid` to real data
-- [ ] Build `ErrorBanner.tsx` — shows on 503
-- [ ] Add skeleton loaders to all cards
+- [x] Build `hooks/useDashboardData.ts` — SWR, `refreshInterval: 60000`, `keepPreviousData: true`
+- [x] Wire `MetricGrid` to real data
+- [x] Build `ErrorBanner.tsx` — shows on 503 (stale data stays visible below banner; centered + retry on first-load failure)
+- [x] Add skeleton loaders to all cards
 
 **Commit & tag when:** Dashboard shows live Sheets data and handles errors gracefully.
 ```bash
@@ -246,7 +246,7 @@ git add . && git commit -m "Milestone 10: v1.0 launch" && git tag v1.0-launch &&
 | `v0.0-init` | Project setup | 2026-06-09 |
 | `v0.1-shell` | Dark shell on Vercel | 2026-06-12 |
 | `v0.2-n8n-sheets` | n8n reads Sheets | 2026-06-12 |
-| `v0.3-live-data` | Dashboard shows real data | — |
+| `v0.3-live-data` | Dashboard shows real data | 2026-06-12 |
 | `v0.4-charts` | Charts live | — |
 | `v0.5-transactions` | Transaction form | — |
 | `v0.6-chat` | AI chatbot | — |
