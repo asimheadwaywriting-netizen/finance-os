@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-12)
 
-**Progress: ~65% · Latest tag: `v0.3-live-data`**
+**Progress: ~72% · Latest tag: `v0.4-charts`**
 
 | What | Status |
 |------|--------|
@@ -28,9 +28,14 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - **Antigravity:** `hooks/useDashboardData.ts` (SWR, 60s polling, keepPreviousData), three-state UX in page.tsx (skeletons on first load / normal / ErrorBanner above stale data on refresh failure, centered banner + retry on first-load failure).
 - **Also fixed:** transparent AI Assistant Sheet panel — shadcn token colors (bg-card/bg-popover) were never mapped in tailwind.config.ts on Tailwind v3, so the classes generated no CSS.
 
-## Next Up — Milestone 4 (`v0.4-charts`, Antigravity only)
+## Milestone 4 — DONE (`v0.4-charts`, 2026-06-12)
 
-- `npm install recharts`; build SpendingByCategory (horizontal bar, CATEGORY_COLORS), MonthlyTrend (2-line chart), GoalsProgress (bar + 80% reference line); shared chart config from gemini.md; all in ResponsiveContainer.
+- Antigravity built SpendingByCategory (horizontal bar, CATEGORY_COLORS + gray fallback), MonthlyTrend (blue/orange 2-line), GoalsProgress (progressPct bars, amber #f59e0b reference line at 80%, domain [0,100]); shared dark chart config, ৳ tooltips, skeletons. Verified against gemini.md spec by Claude Code.
+
+## Next Up — Milestone 5 (`v0.5-transactions`, both agents)
+
+- **Claude Code first:** build n8n Workflow 2 (`transaction-logger`: webhook → validate incl. payee → Sheets append → respond) + real `/api/transactions` proxy + `N8N_TRANSACTION_WEBHOOK_URL` env var (Vercel + .env.local).
+- **Then Antigravity:** TransactionForm.tsx (type/category/account dropdowns + payee input + date picker), TransactionList.tsx, useTransactions hook with optimistic UI + rollback.
 
 ## Verified 2026-06-12 (end of session)
 

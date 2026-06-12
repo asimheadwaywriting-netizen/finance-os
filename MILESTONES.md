@@ -101,12 +101,12 @@ git add . && git commit -m "Milestone 3: Dashboard shows real data" && git tag v
 **Who:** Antigravity | **Tag:** `v0.4-charts`
 **Goal:** Three Recharts components rendering with real data and correct visual config.
 
-- [ ] Install Recharts: `npm install recharts`
-- [ ] Build `SpendingByCategory.tsx` — horizontal bar, sorted desc, CATEGORY_COLORS
-- [ ] Build `MonthlyTrend.tsx` — line chart, 2 lines, no fill, blue/orange
-- [ ] Build `GoalsProgress.tsx` — horizontal bar, progressPct, amber reference line at 80%
-- [ ] Apply shared chart config (axis colors, tooltip style, font-mono ticks)
-- [ ] All charts wrapped in `<ResponsiveContainer width="100%" height={240}>`
+- [x] Install Recharts: `npm install recharts`
+- [x] Build `SpendingByCategory.tsx` — horizontal bar, sorted desc, CATEGORY_COLORS
+- [x] Build `MonthlyTrend.tsx` — line chart, 2 lines, no fill, blue/orange
+- [x] Build `GoalsProgress.tsx` — horizontal bar, progressPct, amber reference line at 80%
+- [x] Apply shared chart config (axis colors, tooltip style, font-mono ticks, ৳ formatting)
+- [x] All charts wrapped in `<ResponsiveContainer width="100%" height={240}>`
 
 **Commit & tag when:** Three charts render with real data, correct colors, and tooltips.
 ```bash
@@ -247,7 +247,7 @@ git add . && git commit -m "Milestone 10: v1.0 launch" && git tag v1.0-launch &&
 | `v0.1-shell` | Dark shell on Vercel | 2026-06-12 |
 | `v0.2-n8n-sheets` | n8n reads Sheets | 2026-06-12 |
 | `v0.3-live-data` | Dashboard shows real data | 2026-06-12 |
-| `v0.4-charts` | Charts live | — |
+| `v0.4-charts` | Charts live | 2026-06-12 |
 | `v0.5-transactions` | Transaction form | — |
 | `v0.6-chat` | AI chatbot | — |
 | `v0.7-chat-log` | Chatbot logs transactions | — |

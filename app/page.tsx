@@ -7,6 +7,9 @@ import SafeToSpendCard from '@/components/dashboard/SafeToSpendCard'
 import ErrorBanner from '@/components/dashboard/ErrorBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { Card, CardContent } from '@/components/ui/card'
+import SpendingByCategory from '@/components/charts/SpendingByCategory'
+import MonthlyTrend from '@/components/charts/MonthlyTrend'
+import GoalsProgress from '@/components/charts/GoalsProgress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { 
   Sheet, 
@@ -63,6 +66,31 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 h-[320px] flex flex-col justify-between">
+                <div>
+                  <h4 className="font-sans font-medium text-sm text-white mb-2">Spending by Category</h4>
+                  <Skeleton className="h-4 w-32 bg-white/5" />
+                </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-[180px] w-full bg-white/5" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 h-[320px] flex flex-col justify-between">
+                <div>
+                  <h4 className="font-sans font-medium text-sm text-white mb-2">Goals Progress</h4>
+                  <Skeleton className="h-4 w-32 bg-white/5" />
+                </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-[180px] w-full bg-white/5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )
     }
@@ -90,49 +118,82 @@ export default function Home() {
           loading={false}
         />
 
-        {/* Structured Grid Placeholders for Next Milestones */}
+        {/* Row 1: Trend Line Chart & Accounts balances */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Charts Placeholder Block */}
+          {/* Cash Flow Line Chart */}
           <Card className="lg:col-span-2 bg-card border-white/10 overflow-hidden relative group">
             <CardContent className="p-6 h-[320px] flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-center mb-2">
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
                   <h4 className="font-sans font-medium text-sm text-white">Monthly Cash Flow Trend</h4>
-                  <span className="text-[10px] text-brand-income bg-brand-income/10 px-2 py-0.5 rounded font-mono border border-brand-income/20">Milestone 4</span>
+                  <span className="text-[10px] text-gray-500 font-mono">Live</span>
                 </div>
-                <p className="text-xs text-gray-500">Visualization of monthly income vs expenses</p>
+                <p className="text-xs text-gray-500">Income vs expenses trend over time</p>
               </div>
 
-              <div className="flex flex-col items-center justify-center flex-1 text-center py-6 border border-dashed border-white/5 rounded-lg bg-white/[0.01]">
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 text-gray-400 group-hover:scale-105 transition-transform">
-                  <Sparkles className="w-5 h-5 text-brand-income" />
-                </div>
-                <h5 className="text-sm font-medium text-white mb-1">Visualizing Trends</h5>
-                <p className="text-xs text-gray-500 max-w-sm">Recharts component showing monthly trends will render here in Milestone 4.</p>
+              <div className="flex-1 min-h-[220px]">
+                <MonthlyTrend data={data.monthlyTrend} />
               </div>
             </CardContent>
           </Card>
 
-          {/* Accounts & Assets Sidebar Placeholder */}
+          {/* Accounts & Assets Sidebar */}
           <Card className="bg-card border-white/10 overflow-hidden relative group">
             <CardContent className="p-6 h-[320px] flex flex-col justify-between">
               <div>
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-1">
                   <h4 className="font-sans font-medium text-sm text-white">Accounts & Balances</h4>
-                  <span className="text-[10px] text-brand-income bg-brand-income/10 px-2 py-0.5 rounded font-mono border border-brand-income/20">Milestone 8</span>
+                  <span className="text-[10px] text-brand-income bg-brand-income/10 px-2 py-0.5 rounded font-mono border border-brand-income/20">Active</span>
                 </div>
                 <p className="text-xs text-gray-500">Breakdown of current asset allocations</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 mt-4">
+              <div className="flex-1 overflow-y-auto space-y-3 mt-4 pr-1">
                 {data.accountBalances.map((acc, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-white/5 border border-white/5">
+                  <div key={idx} className="flex justify-between items-center p-2.5 rounded bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.07] transition-all">
                     <span className="text-xs font-medium text-gray-300">{acc.name}</span>
                     <span className="text-xs font-mono font-semibold text-brand-income">
                       {acc.balance >= 0 ? '+' : ''}৳{acc.balance.toLocaleString()}
                     </span>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Row 2: Category Bar Chart & Savings Goals */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Spending by Category Card */}
+          <Card className="bg-card border-white/10 overflow-hidden relative group">
+            <CardContent className="p-6 h-[320px] flex flex-col justify-between">
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <h4 className="font-sans font-medium text-sm text-white">Spending by Category</h4>
+                  <span className="text-[10px] text-gray-500 font-mono">Current Month</span>
+                </div>
+                <p className="text-xs text-gray-500">Distribution of expenses across categories</p>
+              </div>
+
+              <div className="flex-1 min-h-[220px]">
+                <SpendingByCategory data={data.spendingByCategory} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Goals Progress Card */}
+          <Card className="bg-card border-white/10 overflow-hidden relative group">
+            <CardContent className="p-6 h-[320px] flex flex-col justify-between">
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <h4 className="font-sans font-medium text-sm text-white">Goals Progress</h4>
+                  <span className="text-[10px] text-gray-500 font-mono">Active Savings</span>
+                </div>
+                <p className="text-xs text-gray-500">Percent completion towards target milestones</p>
+              </div>
+
+              <div className="flex-1 min-h-[220px]">
+                <GoalsProgress data={data.goals} />
               </div>
             </CardContent>
           </Card>
