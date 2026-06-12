@@ -39,6 +39,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - [x] Tested end-to-end by script (`n8n/deploy-milestone5.js`): invalid → 400; valid → row in Sheet, visible via aggregator; test row auto-deleted by temp helper workflow.
 - [ ] **ASIM:** add `N8N_TRANSACTION_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` in Vercel → finance-os → Settings → Environments → Production (same place as last time).
 - [ ] **Antigravity:** TransactionForm.tsx (type/category/account dropdowns + payee input + date picker, uses `categoriesForType()` from lib/constants), TransactionList.tsx (last 10, color-coded amounts), useTransactions hook with optimistic UI + rollback on 4xx/5xx. API contract documented in gemini.md. Tag `v0.5-transactions` after.
+  - Plan reviewed + approved by Claude Code (2026-06-12) with corrections: missing Amount field (critical — send as number), account options from `data.accountBalances` not hardcoded, category as colored badge, optimistic metrics only for current-month dates.
 
 ## Verified 2026-06-12 (end of session)
 
