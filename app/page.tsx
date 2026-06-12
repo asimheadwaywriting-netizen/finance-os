@@ -6,10 +6,13 @@ import MetricGrid from '@/components/dashboard/MetricGrid'
 import SafeToSpendCard from '@/components/dashboard/SafeToSpendCard'
 import ErrorBanner from '@/components/dashboard/ErrorBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
+import { useTransactions } from '@/hooks/useTransactions'
 import { Card, CardContent } from '@/components/ui/card'
 import SpendingByCategory from '@/components/charts/SpendingByCategory'
 import MonthlyTrend from '@/components/charts/MonthlyTrend'
 import GoalsProgress from '@/components/charts/GoalsProgress'
+import TransactionForm from '@/components/transactions/TransactionForm'
+import TransactionList from '@/components/transactions/TransactionList'
 import { Skeleton } from '@/components/ui/skeleton'
 import { 
   Sheet, 
@@ -24,6 +27,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<string>('dashboard')
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false)
   const { data, error, isLoading, mutate } = useDashboardData()
+  const { addTransaction, isSubmitting: isTxSubmitting } = useTransactions()
 
   const renderDashboardView = () => {
     const hasError = !!error
@@ -91,6 +95,18 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Table skeleton */}
+          <Card className="bg-card border-white/10 overflow-hidden">
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-4 w-36 bg-white/5" />
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )
     }
@@ -198,6 +214,75 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Row 3: Recent Transactions Summary List */}
+        <TransactionList 
+          transactions={data.recentTransactions} 
+          title="Recent Transactions"
+        />
+      </div>
+    )
+  }
+
+  const renderTransactionsView = () => {
+    const hasError = !!error
+    const hasData = !!data
+
+    if (isLoading || !data) {
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <Card className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 space-y-4">
+                <Skeleton className="h-6 w-24 bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-12 w-full bg-white/5" />
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-2">
+            <Card className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 space-y-3">
+                <Skeleton className="h-6 w-36 bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+                <Skeleton className="h-10 w-full bg-white/5" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )
+    }
+
+    if (hasError && !hasData) {
+      return <ErrorBanner message={error.message} onRetry={mutate} />
+    }
+
+    return (
+      <div className="space-y-6">
+        {hasError && (
+          <ErrorBanner message={error.message} onRetry={mutate} />
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <TransactionForm 
+              onSubmit={async (tx) => { await addTransaction(tx) }}
+              isSubmitting={isTxSubmitting}
+              accounts={data.accountBalances}
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <TransactionList 
+              transactions={data.recentTransactions} 
+              title="Transaction Ledger"
+            />
+          </div>
+        </div>
       </div>
     )
   }
@@ -235,11 +320,7 @@ export default function Home() {
 
           {activeView === 'dashboard' && renderDashboardView()}
           
-          {activeView === 'transactions' && renderPlaceholderView(
-            "Transactions Ledger",
-            "A full ledger of recent transactions and an interactive form to log income/expenses directly to Google Sheets with optimistic state rollbacks will be implemented in Milestone 5.",
-            "Milestone 5"
-          )}
+          {activeView === 'transactions' && renderTransactionsView()}
 
           {activeView === 'goals' && renderPlaceholderView(
             "Savings Goals Progress",
