@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-12)
 
-**Progress: ~85% · Latest tag: `v0.4-charts` (v0.5 pending Vercel env vars + click test)**
+**Progress: ~88% · Latest tag: `v0.5-transactions`**
 
 | What | Status |
 |------|--------|
@@ -38,10 +38,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - [x] **`/api/transactions`** is a real proxy now: cheap missing-field pre-check, 10s timeout, n8n 400s passed through, 503 if n8n unreachable.
 - [x] Tested end-to-end by script (`n8n/deploy-milestone5.js`): invalid → 400; valid → row in Sheet, visible via aggregator; test row auto-deleted by temp helper workflow.
 - [x] **Antigravity UI half DONE (2026-06-12):** TransactionForm (all fields incl. Amount, accounts from live cache), TransactionList (category badges, color-coded amounts), useTransactions (optimistic cache patch with current-month guard, rollbackOnError). All 4 plan-review corrections verified in code by Claude Code.
-- [ ] **ASIM (blocking the v0.5 tag):** add BOTH env vars in Vercel → finance-os → Settings → Environments → Production:
-  - `N8N_TRANSACTION_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction`
-  - `N8N_CHAT_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-chat`
-- [ ] Then click-test the form on the live site (row should appear instantly + land in the Google Sheet) → tag `v0.5-transactions`.
+- [x] All 3 env vars in Vercel Production (dashboard, transaction, chat). Tagged `v0.5-transactions` 2026-06-12 — form + list + optimistic UI live in production.
 
 ## Milestone 6 — Claude Code half DONE (2026-06-12)
 

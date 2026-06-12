@@ -249,7 +249,7 @@ git add . && git commit -m "Milestone 10: v1.0 launch" && git tag v1.0-launch &&
 | `v0.2-n8n-sheets` | n8n reads Sheets | 2026-06-12 |
 | `v0.3-live-data` | Dashboard shows real data | 2026-06-12 |
 | `v0.4-charts` | Charts live | 2026-06-12 |
-| `v0.5-transactions` | Transaction form | — |
+| `v0.5-transactions` | Transaction form | 2026-06-12 |
 | `v0.6-chat` | AI chatbot | — |
 | `v0.7-chat-log` | Chatbot logs transactions | — |
 | `v0.8-full-dashboard` | Full dashboard | — |
