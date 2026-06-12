@@ -1,0 +1,412 @@
+{
+  "updatedAt": "2026-06-12T07:57:55.990Z",
+  "createdAt": "2026-06-12T07:57:55.990Z",
+  "id": "5RkSgctHtRNq3mIR",
+  "name": "ai-chat-handler",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "note1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -280
+      ],
+      "parameters": {
+        "content": "## AI Chat Handler (Workflow 3)\nCalled by the dashboard via POST /api/chat with { message, history }. Fetches the live pre-computed dashboard JSON from Workflow 1, hands it to OpenAI (gpt-4o-mini) with a strict system prompt, and parses the response.\n\nRule: the AI never computes numbers — it only quotes Workflow 1 output.\n\nIf the user asks to log a transaction, the model returns action JSON which is parsed here. Actual logging is wired in Milestone 7.",
+        "height": 280,
+        "width": 540,
+        "color": 4
+      }
+    },
+    {
+      "id": "wh1",
+      "name": "Chat Message Received",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "c140ea03-b528-49ce-8b8f-d964b75f726c"
+    },
+    {
+      "id": "http1",
+      "name": "Get Live Dashboard Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "url": "https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "code1",
+      "name": "Build OpenAI Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const req = $('Chat Message Received').first().json.body || {};\nconst message = String(req.message || '');\nconst history = Array.isArray(req.history) ? req.history.slice(-10) : [];\nconst dash = $json;\nconst today = DateTime.now().setZone('Asia/Dhaka').toFormat('yyyy-MM-dd');\n\nconst expenseCats = 'Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous';\nconst incomeCats = 'Salary, Freelance Income, Other Income';\nconst accounts = (dash.accountBalances || []).map(function (a) { return a.name; }).join(', ');\n\nconst sys = [\n  'You are Finance OS Assistant, the personal finance assistant for Asim. Currency is BDT (Bangladeshi Taka, symbol \\u09f3).',\n  'Today is ' + today + '.',\n  'Below is the pre-computed dashboard data (DATA). It was calculated deterministically — trust it completely.',\n  'RULES:',\n  '1. NEVER calculate, add, subtract, or derive new numbers. Only quote numbers that literally appear in DATA. If the answer needs math that is not already in DATA, say you only have the pre-computed figures and name the closest one.',\n  '2. Keep replies short, plain, and friendly. Format amounts like \\u09f3,1,234.',\n  '3. If the user asks to log, record, or add a transaction or expense/income, respond with ONLY this JSON and no other text:',\n  '{\"action\":\"log_transaction\",\"transaction\":{\"date\":\"YYYY-MM-DD\",\"type\":\"Income or Expense\",\"category\":\"<pick one>\",\"payee\":\"<who was paid or who paid>\",\"amount\":<number>,\"account\":\"<pick one>\",\"note\":\"\"}}',\n  '   - Use today (' + today + ') unless another date is given.',\n  '   - Expense categories: ' + expenseCats + '.',\n  '   - Income categories: ' + incomeCats + '.',\n  '   - Accounts: ' + accounts + '. Default to Cash if unclear.',\n  '   - If payee is not mentioned, use a sensible short label from context.',\n  '4. For anything not about personal finance, politely steer back to finances.',\n  'DATA: ' + JSON.stringify(dash)\n].join('\\n');\n\nconst messages = [{ role: 'system', content: sys }];\nfor (const h of history) {\n  if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {\n    messages.push({ role: h.role, content: String(h.content) });\n  }\n}\nmessages.push({ role: 'user', content: message });\n\nreturn [{ json: { payload: { model: 'gpt-4o-mini', messages: messages, temperature: 0.3, max_tokens: 500 } } }];"
+      }
+    },
+    {
+      "id": "http2",
+      "name": "Ask OpenAI (gpt-4o-mini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "9L3j2utOyiBJWa9S",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "code2",
+      "name": "Parse Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const res = $json;\nlet content = '';\ntry { content = res.choices[0].message.content || ''; } catch (e) { content = ''; }\nlet reply = String(content).trim();\nlet action = null;\nlet transaction = null;\n\n// Strip markdown code fences if the model wrapped its JSON\nconst BT = String.fromCharCode(96);\nconst FENCE = BT + BT + BT;\nlet cleaned = reply;\nif (cleaned.indexOf(FENCE) === 0) {\n  cleaned = cleaned.slice(cleaned.indexOf('\\n') + 1);\n  const endFence = cleaned.lastIndexOf(FENCE);\n  if (endFence !== -1) cleaned = cleaned.slice(0, endFence);\n  cleaned = cleaned.trim();\n}\n\nif (cleaned.indexOf('\"action\"') !== -1) {\n  try {\n    const start = cleaned.indexOf('{');\n    const end = cleaned.lastIndexOf('}');\n    const obj = JSON.parse(cleaned.slice(start, end + 1));\n    if (obj.action === 'log_transaction' && obj.transaction) {\n      action = 'log_transaction';\n      transaction = obj.transaction;\n      reply = 'Ready to log: ' + transaction.type + ' of ' + transaction.amount +\n        ' BDT — ' + transaction.category + ', payee ' + transaction.payee +\n        ', via ' + transaction.account + ' on ' + transaction.date +\n        '. (Auto-logging activates in Milestone 7.)';\n    }\n  } catch (e) { /* not valid action JSON — treat as plain reply */ }\n}\n\nif (!reply) reply = 'AI temporarily unavailable';\nreturn [{ json: { reply: reply, action: action, transaction: transaction } }];"
+      }
+    },
+    {
+      "id": "resp1",
+      "name": "Return Chat Reply",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Chat Message Received": {
+      "main": [
+        [
+          {
+            "node": "Get Live Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Live Dashboard Data": {
+      "main": [
+        [
+          {
+            "node": "Build OpenAI Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build OpenAI Messages": {
+      "main": [
+        [
+          {
+            "node": "Ask OpenAI (gpt-4o-mini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask OpenAI (gpt-4o-mini)": {
+      "main": [
+        [
+          {
+            "node": "Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Intent": {
+      "main": [
+        [
+          {
+            "node": "Return Chat Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
+  "activeVersionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
+  "versionCounter": 3,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-12T07:57:55.992Z",
+      "createdAt": "2026-06-12T07:57:55.992Z",
+      "role": "workflow:owner",
+      "workflowId": "5RkSgctHtRNq3mIR",
+      "projectId": "WmvPfEaxd3Xp7T39",
+      "project": {
+        "updatedAt": "2026-02-28T09:18:59.607Z",
+        "createdAt": "2026-02-28T09:18:48.509Z",
+        "id": "WmvPfEaxd3Xp7T39",
+        "name": "Khondoker Arman <asim.headwaywriting@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-12T07:57:55.995Z",
+    "createdAt": "2026-06-12T07:57:55.995Z",
+    "versionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
+    "workflowId": "5RkSgctHtRNq3mIR",
+    "nodes": [
+      {
+        "id": "note1",
+        "name": "Overview",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -80,
+          -280
+        ],
+        "parameters": {
+          "content": "## AI Chat Handler (Workflow 3)\nCalled by the dashboard via POST /api/chat with { message, history }. Fetches the live pre-computed dashboard JSON from Workflow 1, hands it to OpenAI (gpt-4o-mini) with a strict system prompt, and parses the response.\n\nRule: the AI never computes numbers — it only quotes Workflow 1 output.\n\nIf the user asks to log a transaction, the model returns action JSON which is parsed here. Actual logging is wired in Milestone 7.",
+          "height": 280,
+          "width": 540,
+          "color": 4
+        }
+      },
+      {
+        "id": "wh1",
+        "name": "Chat Message Received",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "finance-chat",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "c140ea03-b528-49ce-8b8f-d964b75f726c"
+      },
+      {
+        "id": "http1",
+        "name": "Get Live Dashboard Data",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "url": "https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard",
+          "options": {
+            "timeout": 15000
+          }
+        }
+      },
+      {
+        "id": "code1",
+        "name": "Build OpenAI Messages",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const req = $('Chat Message Received').first().json.body || {};\nconst message = String(req.message || '');\nconst history = Array.isArray(req.history) ? req.history.slice(-10) : [];\nconst dash = $json;\nconst today = DateTime.now().setZone('Asia/Dhaka').toFormat('yyyy-MM-dd');\n\nconst expenseCats = 'Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous';\nconst incomeCats = 'Salary, Freelance Income, Other Income';\nconst accounts = (dash.accountBalances || []).map(function (a) { return a.name; }).join(', ');\n\nconst sys = [\n  'You are Finance OS Assistant, the personal finance assistant for Asim. Currency is BDT (Bangladeshi Taka, symbol \\u09f3).',\n  'Today is ' + today + '.',\n  'Below is the pre-computed dashboard data (DATA). It was calculated deterministically — trust it completely.',\n  'RULES:',\n  '1. NEVER calculate, add, subtract, or derive new numbers. Only quote numbers that literally appear in DATA. If the answer needs math that is not already in DATA, say you only have the pre-computed figures and name the closest one.',\n  '2. Keep replies short, plain, and friendly. Format amounts like \\u09f3,1,234.',\n  '3. If the user asks to log, record, or add a transaction or expense/income, respond with ONLY this JSON and no other text:',\n  '{\"action\":\"log_transaction\",\"transaction\":{\"date\":\"YYYY-MM-DD\",\"type\":\"Income or Expense\",\"category\":\"<pick one>\",\"payee\":\"<who was paid or who paid>\",\"amount\":<number>,\"account\":\"<pick one>\",\"note\":\"\"}}',\n  '   - Use today (' + today + ') unless another date is given.',\n  '   - Expense categories: ' + expenseCats + '.',\n  '   - Income categories: ' + incomeCats + '.',\n  '   - Accounts: ' + accounts + '. Default to Cash if unclear.',\n  '   - If payee is not mentioned, use a sensible short label from context.',\n  '4. For anything not about personal finance, politely steer back to finances.',\n  'DATA: ' + JSON.stringify(dash)\n].join('\\n');\n\nconst messages = [{ role: 'system', content: sys }];\nfor (const h of history) {\n  if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {\n    messages.push({ role: h.role, content: String(h.content) });\n  }\n}\nmessages.push({ role: 'user', content: message });\n\nreturn [{ json: { payload: { model: 'gpt-4o-mini', messages: messages, temperature: 0.3, max_tokens: 500 } } }];"
+        }
+      },
+      {
+        "id": "http2",
+        "name": "Ask OpenAI (gpt-4o-mini)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          660,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.openai.com/v1/chat/completions",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "openAiApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.payload) }}",
+          "options": {
+            "timeout": 30000
+          }
+        },
+        "credentials": {
+          "openAiApi": {
+            "id": "9L3j2utOyiBJWa9S",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "id": "code2",
+        "name": "Parse Intent",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const res = $json;\nlet content = '';\ntry { content = res.choices[0].message.content || ''; } catch (e) { content = ''; }\nlet reply = String(content).trim();\nlet action = null;\nlet transaction = null;\n\n// Strip markdown code fences if the model wrapped its JSON\nconst BT = String.fromCharCode(96);\nconst FENCE = BT + BT + BT;\nlet cleaned = reply;\nif (cleaned.indexOf(FENCE) === 0) {\n  cleaned = cleaned.slice(cleaned.indexOf('\\n') + 1);\n  const endFence = cleaned.lastIndexOf(FENCE);\n  if (endFence !== -1) cleaned = cleaned.slice(0, endFence);\n  cleaned = cleaned.trim();\n}\n\nif (cleaned.indexOf('\"action\"') !== -1) {\n  try {\n    const start = cleaned.indexOf('{');\n    const end = cleaned.lastIndexOf('}');\n    const obj = JSON.parse(cleaned.slice(start, end + 1));\n    if (obj.action === 'log_transaction' && obj.transaction) {\n      action = 'log_transaction';\n      transaction = obj.transaction;\n      reply = 'Ready to log: ' + transaction.type + ' of ' + transaction.amount +\n        ' BDT — ' + transaction.category + ', payee ' + transaction.payee +\n        ', via ' + transaction.account + ' on ' + transaction.date +\n        '. (Auto-logging activates in Milestone 7.)';\n    }\n  } catch (e) { /* not valid action JSON — treat as plain reply */ }\n}\n\nif (!reply) reply = 'AI temporarily unavailable';\nreturn [{ json: { reply: reply, action: action, transaction: transaction } }];"
+        }
+      },
+      {
+        "id": "resp1",
+        "name": "Return Chat Reply",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1100,
+          0
+        ],
+        "parameters": {
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "Chat Message Received": {
+        "main": [
+          [
+            {
+              "node": "Get Live Dashboard Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Live Dashboard Data": {
+        "main": [
+          [
+            {
+              "node": "Build OpenAI Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build OpenAI Messages": {
+        "main": [
+          [
+            {
+              "node": "Ask OpenAI (gpt-4o-mini)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ask OpenAI (gpt-4o-mini)": {
+        "main": [
+          [
+            {
+              "node": "Parse Intent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Intent": {
+        "main": [
+          [
+            {
+              "node": "Return Chat Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Khondoker Arman",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-12T07:57:56.143Z",
+        "id": 488,
+        "workflowId": "5RkSgctHtRNq3mIR",
+        "versionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
+        "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    ]
+  }
+}

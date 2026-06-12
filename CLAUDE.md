@@ -53,8 +53,10 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 - **Google Sheet:** `Finance OS` — spreadsheet ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` (4 tabs seeded with Jan–Jun 2026 sample data)
 - **Workflow 1:** `finance-data-aggregator` — n8n workflow ID `8GejOtDtsht0CfEJ`, active
 - **Workflow 2:** `transaction-logger` — n8n workflow ID `WwmlYYISq5buXPYx`, active (validate incl. payee → append; 400 + error list on invalid, nothing written)
+- **Workflow 3:** `ai-chat-handler` — n8n workflow ID `5RkSgctHtRNq3mIR`, active (fetch Workflow 1 JSON → gpt-4o-mini → parse intent → `{ reply, action, transaction }`)
 - **Webhook:** `GET https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` → returns `DashboardData`
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` → `{ success, transaction }` or 400 `{ success: false, error }`
+- **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-chat` → `{ reply, action, transaction }`
 - Workflow export: `n8n/finance-data-aggregator.json` · sample response: `n8n/sample-dashboard-response.json` · deploy script: `n8n/deploy-milestone2.js`
 - Implementation note: reads use ONE Sheets `values:batchGet` call for all 4 tabs (quota-friendlier than 4 separate reads); dates seeded with `valueInputOption: RAW` so they stay strings, and the Code node converts serial numbers defensively anyway
 - `safeToSpend` formula: current month `net` minus total `monthly_contribution` across all goals

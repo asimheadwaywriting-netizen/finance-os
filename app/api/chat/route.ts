@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server'
+import type { ChatMessage } from '@/lib/types'
 
-// Milestone 1 stub — returns a canned reply.
-// Later milestone: forward to process.env.N8N_CHAT_WEBHOOK_URL (OpenAI via n8n)
-// + 30s timeout with "AI temporarily unavailable" fallback.
+// Proxy to n8n Workflow 3 (ai-chat-handler). The webhook URL lives in env
+// vars only (Vercel dashboard / .env.local) — never in client-side code.
+export const dynamic = 'force-dynamic'
+
+// OpenAI can be slow; per CLAUDE.md the fallback after 30s is a graceful reply.
+const TIMEOUT_MS = 30_000
+
+const FALLBACK = { reply: 'AI temporarily unavailable. Please try again.' }
 
 export async function POST(request: Request) {
-  let body: { message?: string }
+  const url = process.env.N8N_CHAT_WEBHOOK_URL
+  if (!url) {
+    return NextResponse.json(
+      { error: 'N8N_CHAT_WEBHOOK_URL is not configured' },
+      { status: 503 }
+    )
+  }
+
+  let body: { message?: string; history?: ChatMessage[] }
   try {
     body = await request.json()
   } catch {
@@ -19,7 +33,31 @@ export async function POST(request: Request) {
     )
   }
 
-  return NextResponse.json({
-    reply: `(stub) AI assistant not wired up yet. You said: "${body.message}"`,
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: body.message,
+        history: Array.isArray(body.history) ? body.history : [],
+      }),
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+    if (!res.ok) {
+      throw new Error(`n8n responded with ${res.status}`)
+    }
+    // { reply, action, transaction } from Workflow 3
+    const data = await res.json()
+    return NextResponse.json(data)
+  } catch (err) {
+    console.error('[api/chat] n8n fetch failed:', err)
+    // Graceful degradation: the chat UI shows this as a normal AI message.
+    return NextResponse.json(FALLBACK)
+  } finally {
+    clearTimeout(timeout)
+  }
 }

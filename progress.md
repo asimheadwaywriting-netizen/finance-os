@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-12)
 
-**Progress: ~72% · Latest tag: `v0.4-charts`**
+**Progress: ~85% · Latest tag: `v0.4-charts` (v0.5 pending Vercel env vars + click test)**
 
 | What | Status |
 |------|--------|
@@ -37,9 +37,18 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - [x] **Workflow 2 `transaction-logger`** (ID `WwmlYYISq5buXPYx`) live: POST webhook → validate (required fields incl. payee, Income/Expense type, positive amount, YYYY-MM-DD date) → Sheets append (RAW) → respond. 400 + error list on invalid, nothing written.
 - [x] **`/api/transactions`** is a real proxy now: cheap missing-field pre-check, 10s timeout, n8n 400s passed through, 503 if n8n unreachable.
 - [x] Tested end-to-end by script (`n8n/deploy-milestone5.js`): invalid → 400; valid → row in Sheet, visible via aggregator; test row auto-deleted by temp helper workflow.
-- [ ] **ASIM:** add `N8N_TRANSACTION_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` in Vercel → finance-os → Settings → Environments → Production (same place as last time).
-- [ ] **Antigravity:** TransactionForm.tsx (type/category/account dropdowns + payee input + date picker, uses `categoriesForType()` from lib/constants), TransactionList.tsx (last 10, color-coded amounts), useTransactions hook with optimistic UI + rollback on 4xx/5xx. API contract documented in gemini.md. Tag `v0.5-transactions` after.
-  - Plan reviewed + approved by Claude Code (2026-06-12) with corrections: missing Amount field (critical — send as number), account options from `data.accountBalances` not hardcoded, category as colored badge, optimistic metrics only for current-month dates.
+- [x] **Antigravity UI half DONE (2026-06-12):** TransactionForm (all fields incl. Amount, accounts from live cache), TransactionList (category badges, color-coded amounts), useTransactions (optimistic cache patch with current-month guard, rollbackOnError). All 4 plan-review corrections verified in code by Claude Code.
+- [ ] **ASIM (blocking the v0.5 tag):** add BOTH env vars in Vercel → finance-os → Settings → Environments → Production:
+  - `N8N_TRANSACTION_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction`
+  - `N8N_CHAT_WEBHOOK_URL` = `https://asim.sg-node8n.serverdoor.com/webhook/finance-chat`
+- [ ] Then click-test the form on the live site (row should appear instantly + land in the Google Sheet) → tag `v0.5-transactions`.
+
+## Milestone 6 — Claude Code half DONE (2026-06-12)
+
+- [x] **Workflow 3 `ai-chat-handler`** (ID `5RkSgctHtRNq3mIR`) live: webhook → fetches Workflow 1's pre-computed JSON → gpt-4o-mini (existing `OpenAi account` credential) with strict never-compute-numbers system prompt → parse intent → `{ reply, action, transaction }`.
+- [x] **`/api/chat`** real proxy: 30s timeout, graceful `"AI temporarily unavailable"` fallback (rendered as a normal AI bubble).
+- [x] Tested live: groceries question answered with correct ৳6,400; "log 500 taka transport on bKash" parsed to perfect action JSON (logging itself activates in Milestone 7).
+- [ ] **Antigravity:** ChatPanel.tsx (Sheet from right — the shell exists from M1, wire it for real), ChatMessage.tsx, ChatInput.tsx, useChat hook (history array, loading state, sendMessage). Contract documented in gemini.md. Tag `v0.6-chat` after.
 
 ## Verified 2026-06-12 (end of session)
 

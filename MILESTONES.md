@@ -125,9 +125,9 @@ git add . && git commit -m "Milestone 4: Charts live" && git tag v0.4-charts && 
 - [x] Test: POST to `/api/transactions` adds row to Sheets (tested + auto-cleaned via `n8n/deploy-milestone5.js`; validation paths tested through local route)
 
 ### Antigravity
-- [ ] Build `TransactionForm.tsx` — dropdowns for type/category/account, date picker, + Payee text input
-- [ ] Build `TransactionList.tsx` — table of last 10 transactions, color-coded amounts
-- [ ] Build `hooks/useTransactions.ts` — POST + optimistic state update + rollback on failure
+- [x] Build `TransactionForm.tsx` — dropdowns for type/category/account (accounts from live cache), date picker, Payee text input, Amount input (numeric)
+- [x] Build `TransactionList.tsx` — table of last 10 transactions, color-coded amounts, category badges (CATEGORY_COLORS)
+- [x] Build `hooks/useTransactions.ts` — POST + optimistic dashboard-cache update (current-month guard) + rollbackOnError
 
 **Commit & tag when:** Fill form, submit, row appears in list instantly and in Google Sheets.
 ```bash
@@ -142,9 +142,10 @@ git add . && git commit -m "Milestone 5: Transaction form + optimistic UI" && gi
 
 ### Claude Code
 - [x] ~~Get DeepSeek API key~~ → **using OpenAI instead** (existing n8n credential `OpenAi account`, ID `9L3j2utOyiBJWa9S` — no new key needed)
-- [ ] Build Workflow 3 (`ai-chat-handler`): Webhook → OpenAI (`gpt-4o-mini`) → Code (parse intent) → Respond
-- [ ] Write system prompt (financial assistant personality + `action=log_transaction` JSON format)
-- [ ] Build `app/api/chat/route.ts` — POST proxy, pass message + history
+- [x] Build Workflow 3 (`ai-chat-handler`): Webhook → fetch Workflow 1 data → OpenAI (`gpt-4o-mini`) → Code (parse intent) → Respond — ID `5RkSgctHtRNq3mIR`, active
+- [x] Write system prompt (financial assistant personality, never-compute-numbers rule, category/account lists, `action=log_transaction` JSON format)
+- [x] Build `app/api/chat/route.ts` — POST proxy, message + history, 30s timeout with graceful "AI temporarily unavailable" fallback
+- [x] Tested: "What did I spend on groceries this month?" → "You spent ৳6,400..." (correct); log intent → parsed action JSON with correct fields
 
 ### Antigravity
 - [ ] Build `ChatPanel.tsx` — shadcn `Sheet`, slides in from right

@@ -138,7 +138,7 @@ interface DashboardData {
 |----------|--------|---------|----------------------|
 | `GET /api/dashboard` | GET | Full dashboard data (polls every 60s) | `https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` ✅ LIVE |
 | `POST /api/transactions` | POST | Log a new transaction | `https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` ✅ LIVE |
-| `POST /api/chat` | POST | Send message to AI assistant | not built yet (Milestone 6) |
+| `POST /api/chat` | POST | Send message to AI assistant | `https://asim.sg-node8n.serverdoor.com/webhook/finance-chat` ✅ LIVE |
 
 ## Sample API Response (real data from the live n8n webhook)
 
@@ -186,6 +186,20 @@ Responses:
 - `503` → `{ "error": "Transaction service unavailable" }` (n8n down — show ErrorBanner-style message, rollback optimistic row)
 
 Validation enforced server-side: type must be `Income`/`Expense`, amount positive number, date `YYYY-MM-DD`, payee required.
+
+## POST /api/chat contract (for ChatPanel + useChat)
+
+Request body:
+```json
+{ "message": "What did I spend on groceries this month?", "history": [{ "role": "user", "content": "...", "timestamp": 0 }] }
+```
+Response (always 200 once configured):
+```json
+{ "reply": "You spent ৳6,400 on groceries this month.", "action": null, "transaction": null }
+```
+- `reply` — always present; render as the AI bubble. On backend failure it is "AI temporarily unavailable. Please try again." — render it like any normal AI message.
+- `action` — `"log_transaction"` when the user asked to log something (Milestone 7 wires actual logging; until then `reply` describes what would be logged). `useChat` can ignore `action`/`transaction` for Milestone 6.
+- Send the last ~10 messages as `history` so the AI keeps conversation context.
 
 ## Component List to Build
 
