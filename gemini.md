@@ -56,6 +56,10 @@ npx shadcn@latest add card button input table badge sheet skeleton separator
 - Numbers / amounts: `font-mono` always, 1px smaller than surrounding text
 - Labels: sentence case, never all-caps
 
+## Category Taxonomy (CATEGORY_LIST / CATEGORY_COLORS)
+
+Full list + colors are defined in CLAUDE.md "Category Taxonomy" — Claude Code builds `lib/constants.ts` from it in Milestone 1. Summary: ~15 expense categories (Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous) + 3 income categories (Salary, Freelance Income, Other Income), each with a colorblind-safe hex color for `SpendingByCategory` bar fills and category badges. `TransactionForm.tsx` filters `CATEGORY_LIST` by the selected `type`.
+
 **Design rules:**
 - Flat and minimal — no heavy shadows or gradients
 - Elements sit on the dark background, sections separated by `border-white/10` lines
@@ -124,8 +128,8 @@ interface DashboardData {
 - `components/assets/AssetMaturityTracker.tsx` — table sorted by daysToMaturity; amber if ≤30 days, orange if ≤7 days
 
 ### Transactions
-- `components/transactions/TransactionList.tsx` — table: date, category badge, amount (blue/orange), account, note
-- `components/transactions/TransactionForm.tsx` — form with dropdowns; submit triggers optimistic UI update
+- `components/transactions/TransactionList.tsx` — table: date, category badge, payee, amount (blue/orange), account, note
+- `components/transactions/TransactionForm.tsx` — form with dropdowns for type/category/account, date picker, plus a Payee text input; submit triggers optimistic UI update
 
 ### Chat
 - `components/chat/ChatPanel.tsx` — full chat interface, slide in from right as a `Sheet` (shadcn)

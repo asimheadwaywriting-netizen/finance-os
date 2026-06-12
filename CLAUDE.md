@@ -50,10 +50,40 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 **Rule:** DeepSeek never computes numbers. All math lives in the Workflow 1 Code node. DeepSeek only interprets pre-computed JSON output.
 
 ## Google Sheets Structure (4 tabs)
-- **Transactions** — `date, type, category, amount, account, note`
+- **Transactions** — `date, type, category, payee, amount, account, note`
 - **Accounts** — `account_name, starting_balance`
 - **Goals** — `goal_name, target_amount, saved_so_far, monthly_contribution, priority`
 - **Assets** — `asset_name, type, value, institution, start_date, maturity_date, interest_rate, notes`
+
+## Category Taxonomy
+
+Starter envelope list for `lib/constants.ts` (`CATEGORY_LIST` + `CATEGORY_COLORS`), built Milestone 1. `TransactionForm.tsx` filters this list by the selected `type` (Income vs Expense).
+
+**Expense categories:**
+| Category | Color |
+|---|---|
+| Groceries | `#f97316` (orange-500) |
+| Food & Dining | `#fb923c` (orange-400) |
+| Bills & Utilities | `#3b82f6` (blue-500) |
+| Rent / Housing | `#60a5fa` (blue-400) |
+| Transportation | `#a78bfa` (violet-400) |
+| Home Repair | `#f59e0b` (amber-500) |
+| Health & Medical | `#ef4444` (red-500) |
+| Date Night / Entertainment | `#ec4899` (pink-500) |
+| Shopping & Personal | `#06b6d4` (cyan-500) |
+| Education | `#8b5cf6` (violet-500) |
+| Family & Gifts | `#14b8a6` (teal-500) |
+| Subscriptions | `#6366f1` (indigo-500) |
+| Savings & Investments | `#10b981` (emerald-500) |
+| Debt Payment | `#dc2626` (red-600) |
+| Miscellaneous | `#6b7280` (gray-500) |
+
+**Income categories:**
+| Category | Color |
+|---|---|
+| Salary | `#3b82f6` (blue-500) |
+| Freelance Income | `#0ea5e9` (sky-500) |
+| Other Income | `#10b981` (emerald-500) |
 
 ## Environment Variables (Vercel only — never hardcode)
 ```
@@ -93,6 +123,7 @@ export interface Transaction {
   date: string
   type: 'Income' | 'Expense'
   category: string
+  payee: string
   amount: number
   account: string
   note: string

@@ -34,7 +34,7 @@ git push && git push --tags
 - [ ] Configure `tailwind.config.ts` with brand colors (`#0b0f17` bg, blue-500, orange-500, amber-500)
 - [ ] Create `lib/types.ts` with all interfaces from CLAUDE.md
 - [ ] Create `lib/utils.ts` — `formatCurrency()`, `formatDate()`, `cn()`
-- [ ] Create `lib/constants.ts` — `CATEGORY_COLORS`, `CATEGORY_LIST`
+- [ ] Create `lib/constants.ts` — `CATEGORY_COLORS`, `CATEGORY_LIST` (use the finalized taxonomy in CLAUDE.md "Category Taxonomy")
 - [ ] Create stub API routes returning hardcoded JSON (dashboard, transactions, chat)
 - [ ] Update `gemini.md` with confirmed scaffold structure
 
@@ -119,12 +119,12 @@ git add . && git commit -m "Milestone 4: Charts live" && git tag v0.4-charts && 
 **Goal:** Submit a transaction → appears instantly in list → row in Google Sheets.
 
 ### Claude Code
-- [ ] Build Workflow 2 (`transaction-logger`): Webhook → validate → Sheets append → Respond
+- [ ] Build Workflow 2 (`transaction-logger`): Webhook → validate (incl. `payee`) → Sheets append → Respond
 - [ ] Build `app/api/transactions/route.ts` — POST proxy to n8n, try/catch
 - [ ] Test: POST to `/api/transactions` adds row to Sheets
 
 ### Antigravity
-- [ ] Build `TransactionForm.tsx` — dropdowns for type/category/account, date picker
+- [ ] Build `TransactionForm.tsx` — dropdowns for type/category/account, date picker, + Payee text input
 - [ ] Build `TransactionList.tsx` — table of last 10 transactions, color-coded amounts
 - [ ] Build `hooks/useTransactions.ts` — POST + optimistic state update + rollback on failure
 
