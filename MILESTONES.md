@@ -45,7 +45,7 @@ git push && git push --tags
 - [x] Build `MetricCard.tsx` + `MetricGrid.tsx` with hardcoded data
 - [x] Build `SafeToSpendCard.tsx` — large blue mono number
 - [x] Set dark background in `globals.css`
-- [ ] Push to GitHub → Vercel auto-deploys
+- [x] Push to GitHub → Vercel auto-deploys → live at https://finance-os-eight-delta.vercel.app/
 
 **Commit & tag when:** Dashboard loads at Vercel URL with fake numbers and dark layout.
 ```bash
@@ -243,7 +243,7 @@ git add . && git commit -m "Milestone 10: v1.0 launch" && git tag v1.0-launch &&
 | Tag | Milestone | Date |
 |-----|-----------|------|
 | `v0.0-init` | Project setup | 2026-06-09 |
-| `v0.1-shell` | Dark shell on Vercel | — |
+| `v0.1-shell` | Dark shell on Vercel | 2026-06-12 |
 | `v0.2-n8n-sheets` | n8n reads Sheets | — |
 | `v0.3-live-data` | Dashboard shows real data | — |
 | `v0.4-charts` | Charts live | — |
