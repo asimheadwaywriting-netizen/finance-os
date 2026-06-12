@@ -211,7 +211,7 @@ export default function Home() {
                   <span className="font-mono text-xs font-bold">AI</span>
                 </div>
                 <div className="p-3.5 rounded-2xl rounded-tl-none bg-white/5 border border-white/5 text-xs text-gray-300 leading-relaxed">
-                  {"Hi Asim! I'm your Finance OS Assistant. In Milestone 6, I'll be connected to DeepSeek to answer budget queries and automatically log transactions."}
+                  {"Hi Asim! I'm your Finance OS Assistant. In Milestone 6, I'll be connected to OpenAI to answer budget queries and automatically log transactions."}
                 </div>
               </div>
             </div>

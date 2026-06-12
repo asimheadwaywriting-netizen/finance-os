@@ -140,8 +140,8 @@ git add . && git commit -m "Milestone 5: Transaction form + optimistic UI" && gi
 **Goal:** Open chat, ask a financial question, get a correct answer.
 
 ### Claude Code
-- [ ] Get DeepSeek API key → add as n8n Generic Credential
-- [ ] Build Workflow 3 (`ai-chat-handler`): Webhook → HTTP Request (DeepSeek) → Code (parse intent) → Respond
+- [x] ~~Get DeepSeek API key~~ → **using OpenAI instead** (existing n8n credential `OpenAi account`, ID `9L3j2utOyiBJWa9S` — no new key needed)
+- [ ] Build Workflow 3 (`ai-chat-handler`): Webhook → OpenAI (`gpt-4o-mini`) → Code (parse intent) → Respond
 - [ ] Write system prompt (financial assistant personality + `action=log_transaction` JSON format)
 - [ ] Build `app/api/chat/route.ts` — POST proxy, pass message + history
 

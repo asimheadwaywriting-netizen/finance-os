@@ -1,7 +1,7 @@
 # Finance OS — Claude Code Constitution
 
 ## What This Project Is
-A personal finance dashboard for Asim. Data lives in Google Sheets. n8n (self-hosted VPS) is the middleware. Next.js frontend on Vercel. AI chatbot via DeepSeek API. Gmail alerts on schedule.
+A personal finance dashboard for Asim. Data lives in Google Sheets. n8n (self-hosted VPS) is the middleware. Next.js frontend on Vercel. AI chatbot via OpenAI API (existing subscription — DeepSeek was dropped 2026-06-12, no subscription). Gmail alerts on schedule.
 
 ## Ownership — Claude Code vs Antigravity
 
@@ -24,7 +24,7 @@ A personal finance dashboard for Asim. Data lives in Google Sheets. n8n (self-ho
 ## Architecture
 ```
 Browser → Next.js /api/* routes → n8n Webhooks on VPS → Google Sheets
-                                                       → DeepSeek API
+                                                       → OpenAI API
                                                        → Gmail
 ```
 n8n webhook URLs are never in client-side code. They live in Vercel env vars only, read via `process.env` in API routes.
@@ -33,7 +33,7 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 - Next.js 14 (App Router), TypeScript, Tailwind CSS
 - shadcn/ui (component primitives), Recharts (charts)
 - Vercel (deploy), n8n self-hosted VPS
-- DeepSeek API (`deepseek-chat` model)
+- OpenAI API (`gpt-4o-mini` default — bump to `gpt-4o` if answers feel weak; existing n8n credential `OpenAi account`, ID `9L3j2utOyiBJWa9S`)
 - Google Sheets API (via n8n OAuth2 credential)
 
 ## n8n Workflows (7 total)
@@ -41,13 +41,13 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 |---|------|---------|---------|
 | 1 | `finance-data-aggregator` | GET Webhook | Read all 4 Sheets tabs, compute metrics, return JSON |
 | 2 | `transaction-logger` | POST Webhook | Validate + append transaction to Sheets |
-| 3 | `ai-chat-handler` | POST Webhook | DeepSeek chat + optional transaction logging |
+| 3 | `ai-chat-handler` | POST Webhook | OpenAI chat + optional transaction logging |
 | 4 | `weekly-safe-to-spend-alert` | Mon 8am | Gmail weekly summary |
 | 5 | `budget-warning-alert` | Daily 12pm | Gmail if any category ≥80% of budget |
 | 6 | `asset-maturity-reminder` | Daily 9am | Gmail if asset matures within 7 days |
 | 7 | `end-of-month-summary` | Last day 6pm | Gmail full monthly P&L |
 
-**Rule:** DeepSeek never computes numbers. All math lives in the Workflow 1 Code node. DeepSeek only interprets pre-computed JSON output.
+**Rule:** OpenAI never computes numbers. All math lives in the Workflow 1 Code node. OpenAI only interprets pre-computed JSON output.
 
 ## Live Infrastructure (Milestone 2)
 - **Google Sheet:** `Finance OS` — spreadsheet ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` (4 tabs seeded with Jan–Jun 2026 sample data)
@@ -153,7 +153,7 @@ Each route: try/catch + 10s AbortController timeout + 503 on failure.
 
 ## Error Handling Rules
 - Google Sheets quota: retry once after 60s, return cached data via `$getWorkflowStaticData`
-- DeepSeek timeout: return `{ reply: "AI temporarily unavailable" }` after 30s
+- OpenAI timeout: return `{ reply: "AI temporarily unavailable" }` after 30s
 - n8n unreachable: API routes return 503; frontend shows ErrorBanner with stale data
 - Any n8n workflow crash: Error Trigger node → Gmail alert to asim.headwaywriting@gmail.com
 

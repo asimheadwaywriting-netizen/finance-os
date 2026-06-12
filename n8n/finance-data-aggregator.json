@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-12T05:20:54.577Z",
+  "updatedAt": "2026-06-12T05:28:38.543Z",
   "createdAt": "2026-06-12T05:20:54.577Z",
   "id": "8GejOtDtsht0CfEJ",
   "name": "finance-data-aggregator",
@@ -17,7 +17,7 @@
         -260
       ],
       "parameters": {
-        "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. DeepSeek never computes numbers.",
+        "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.",
         "height": 240,
         "width": 520,
         "color": 4
@@ -133,9 +133,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
-  "activeVersionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
-  "versionCounter": 3,
+  "versionId": "1dfb8c88-5e6a-4c02-a3dd-8e5745bd12ae",
+  "activeVersionId": "1dfb8c88-5e6a-4c02-a3dd-8e5745bd12ae",
+  "versionCounter": 6,
   "triggerCount": 1,
   "shared": [
     {
@@ -158,9 +158,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-12T05:20:54.584Z",
-    "createdAt": "2026-06-12T05:20:54.584Z",
-    "versionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
+    "updatedAt": "2026-06-12T05:28:38.544Z",
+    "createdAt": "2026-06-12T05:28:38.544Z",
+    "versionId": "1dfb8c88-5e6a-4c02-a3dd-8e5745bd12ae",
     "workflowId": "8GejOtDtsht0CfEJ",
     "nodes": [
       {
@@ -173,7 +173,7 @@
           -260
         ],
         "parameters": {
-          "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. DeepSeek never computes numbers.",
+          "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.",
           "height": 240,
           "width": 520,
           "color": 4
@@ -286,11 +286,19 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-12T05:20:54.713Z",
-        "id": 484,
+        "createdAt": "2026-06-12T05:28:38.586Z",
+        "id": 486,
         "workflowId": "8GejOtDtsht0CfEJ",
-        "versionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
+        "versionId": "1dfb8c88-5e6a-4c02-a3dd-8e5745bd12ae",
         "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      },
+      {
+        "createdAt": "2026-06-12T05:28:38.573Z",
+        "id": 485,
+        "workflowId": "8GejOtDtsht0CfEJ",
+        "versionId": "1dfb8c88-5e6a-4c02-a3dd-8e5745bd12ae",
+        "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }
     ]

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 // Milestone 1 stub — returns a canned reply.
-// Later milestone: forward to process.env.N8N_CHAT_WEBHOOK_URL (DeepSeek via n8n)
+// Later milestone: forward to process.env.N8N_CHAT_WEBHOOK_URL (OpenAI via n8n)
 // + 30s timeout with "AI temporarily unavailable" fallback.
 
 export async function POST(request: Request) {

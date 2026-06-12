@@ -107,7 +107,7 @@ return [{ json: { spreadsheetId: spreadsheetId, body: body } }];
 
 // ---------------------------------------------------------------------------
 // Aggregation code (runs inside Workflow 1's Code node)
-// All financial math lives HERE — DeepSeek never computes numbers.
+// All financial math lives HERE — the AI (OpenAI) never computes numbers.
 // ---------------------------------------------------------------------------
 const AGG_CODE = `
 const res = $json;
@@ -343,7 +343,7 @@ function aggregatorWorkflow(spreadsheetId) {
         position: [-80, -260],
         parameters: {
           content:
-            '## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. DeepSeek never computes numbers.',
+            '## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.',
           height: 240,
           width: 520,
           color: 4,
