@@ -129,15 +129,50 @@ interface DashboardData {
 
 **Currency:** Always format as BDT (Bangladeshi Taka). Use `formatCurrency(amount)` from `lib/utils.ts`.
 
-## n8n Webhook Endpoints (filled in after Claude Code builds them)
+## n8n Webhook Endpoints
 
-> Claude Code will update these URLs once n8n workflows are live.
+> You always call the Next.js `/api/*` routes — never the n8n URLs directly.
+> n8n URLs listed here are documentation for Claude Code's proxy layer.
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `GET /api/dashboard` | GET | Full dashboard data (polls every 60s) |
-| `POST /api/transactions` | POST | Log a new transaction |
-| `POST /api/chat` | POST | Send message to AI assistant |
+| Endpoint | Method | Purpose | n8n webhook behind it |
+|----------|--------|---------|----------------------|
+| `GET /api/dashboard` | GET | Full dashboard data (polls every 60s) | `https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` ✅ LIVE |
+| `POST /api/transactions` | POST | Log a new transaction | not built yet (Milestone 5) |
+| `POST /api/chat` | POST | Send message to AI assistant | not built yet (Milestone 6) |
+
+## Sample API Response (real data from the live n8n webhook)
+
+Full response saved at `n8n/sample-dashboard-response.json`. Trimmed sample (captured 2026-06-12):
+
+```json
+{
+  "metrics": { "income": 103000, "expenses": 33400, "net": 69600, "safeToSpend": 34600, "daysLeftInMonth": 18 },
+  "accountBalances": [
+    { "name": "Cash", "balance": 2000 },
+    { "name": "bKash", "balance": -5600 },
+    { "name": "Bank - DBBL", "balance": 465000 }
+  ],
+  "goals": [
+    { "name": "Emergency Fund", "target": 300000, "saved": 120000, "contribution": 15000, "priority": "High", "progressPct": 40 }
+  ],
+  "assets": [
+    { "name": "FDR - BRAC Bank", "type": "FDR", "value": 50000, "institution": "BRAC Bank", "daysToMaturity": 8, "interestRate": 8, "maturityDate": "2026-06-20" }
+  ],
+  "recentTransactions": [
+    { "date": "2026-06-11", "type": "Expense", "category": "Transportation", "payee": "Uber / CNG", "amount": 1100, "account": "Cash", "note": "" }
+  ],
+  "spendingByCategory": [
+    { "category": "Rent / Housing", "amount": 18000 },
+    { "category": "Groceries", "amount": 6400 }
+  ],
+  "monthlyTrend": [
+    { "month": "May", "income": 110000, "expenses": 34600 },
+    { "month": "Jun", "income": 103000, "expenses": 33400 }
+  ]
+}
+```
+
+Note: `safeToSpend` = current month net minus total planned goal contributions. `accountBalances` can go negative (bKash above) — render negatives in orange.
 
 ## Component List to Build
 

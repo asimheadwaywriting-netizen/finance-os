@@ -49,6 +49,14 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 
 **Rule:** DeepSeek never computes numbers. All math lives in the Workflow 1 Code node. DeepSeek only interprets pre-computed JSON output.
 
+## Live Infrastructure (Milestone 2)
+- **Google Sheet:** `Finance OS` — spreadsheet ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` (4 tabs seeded with Jan–Jun 2026 sample data)
+- **Workflow 1:** `finance-data-aggregator` — n8n workflow ID `8GejOtDtsht0CfEJ`, active
+- **Webhook:** `GET https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` → returns `DashboardData`
+- Workflow export: `n8n/finance-data-aggregator.json` · sample response: `n8n/sample-dashboard-response.json` · deploy script: `n8n/deploy-milestone2.js`
+- Implementation note: reads use ONE Sheets `values:batchGet` call for all 4 tabs (quota-friendlier than 4 separate reads); dates seeded with `valueInputOption: RAW` so they stay strings, and the Code node converts serial numbers defensively anyway
+- `safeToSpend` formula: current month `net` minus total `monthly_contribution` across all goals
+
 ## Google Sheets Structure (4 tabs)
 - **Transactions** — `date, type, category, payee, amount, account, note`
 - **Accounts** — `account_name, starting_balance`

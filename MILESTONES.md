@@ -58,14 +58,14 @@ git add . && git commit -m "Milestone 1: Dark shell on Vercel" && git tag v0.1-s
 **Who:** Claude Code only | **Tag:** `v0.2-n8n-sheets`
 **Goal:** `curl` the n8n webhook and get real aggregated JSON back.
 
-- [ ] Create Google Sheet with 4 tabs (exact column names from CLAUDE.md)
-- [ ] Add 15+ rows of realistic sample data across all tabs
-- [ ] In n8n: create Google Sheets OAuth2 credential
-- [ ] Build Workflow 1 (`finance-data-aggregator`): Webhook → 4 Sheets reads → Code node → Respond
-- [ ] Write aggregation JavaScript in Code node (income, expenses, net, safe-to-spend, balances, goals %, assets maturing, last 10 transactions, 6-month trend)
-- [ ] Test: webhook returns valid `DashboardData` JSON
-- [ ] Copy real JSON sample into `gemini.md` under "Sample API Response" section
-- [ ] Update `gemini.md` with real n8n webhook URL
+- [x] Create Google Sheet with 4 tabs (exact column names from CLAUDE.md) — ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI`
+- [x] Add 15+ rows of realistic sample data across all tabs (~70 transactions, Jan–Jun 2026)
+- [x] In n8n: create Google Sheets OAuth2 credential — reused existing `Google Sheets account` credential
+- [x] Build Workflow 1 (`finance-data-aggregator`): Webhook → batchGet (all 4 tabs, one call) → Code node → Respond
+- [x] Write aggregation JavaScript in Code node (income, expenses, net, safe-to-spend, balances, goals %, assets maturing, last 10 transactions, 6-month trend)
+- [x] Test: webhook returns valid `DashboardData` JSON
+- [x] Copy real JSON sample into `gemini.md` under "Sample API Response" section
+- [x] Update `gemini.md` with real n8n webhook URL
 
 **Commit & tag when:** Webhook returns correct JSON with real Sheets data.
 ```bash
@@ -244,7 +244,7 @@ git add . && git commit -m "Milestone 10: v1.0 launch" && git tag v1.0-launch &&
 |-----|-----------|------|
 | `v0.0-init` | Project setup | 2026-06-09 |
 | `v0.1-shell` | Dark shell on Vercel | 2026-06-12 |
-| `v0.2-n8n-sheets` | n8n reads Sheets | — |
+| `v0.2-n8n-sheets` | n8n reads Sheets | 2026-06-12 |
 | `v0.3-live-data` | Dashboard shows real data | — |
 | `v0.4-charts` | Charts live | — |
 | `v0.5-transactions` | Transaction form | — |

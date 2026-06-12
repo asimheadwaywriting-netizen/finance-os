@@ -1,0 +1,298 @@
+{
+  "updatedAt": "2026-06-12T05:20:54.577Z",
+  "createdAt": "2026-06-12T05:20:54.577Z",
+  "id": "8GejOtDtsht0CfEJ",
+  "name": "finance-data-aggregator",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "note1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ],
+      "parameters": {
+        "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. DeepSeek never computes numbers.",
+        "height": 240,
+        "width": 520,
+        "color": 4
+      }
+    },
+    {
+      "id": "wh1",
+      "name": "Dashboard Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "finance-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "62be05c5-5018-4168-88b5-4d477b16ceb0"
+    },
+    {
+      "id": "http1",
+      "name": "Read All 4 Sheet Tabs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values:batchGet?ranges=Transactions&ranges=Accounts&ranges=Goals&ranges=Assets&valueRenderOption=UNFORMATTED_VALUE",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "eo7uMjjFUzvjTAGi",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "code1",
+      "name": "Compute Dashboard Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const res = $json;\nconst tabs = {};\nfor (const vr of (res.valueRanges || [])) {\n  const tab = vr.range.split('!')[0].replace(/'/g, '');\n  tabs[tab] = vr.values || [];\n}\nfunction toObjects(values) {\n  if (!values || values.length < 2) return [];\n  const head = values[0];\n  return values.slice(1).map(function (r) {\n    const o = {};\n    head.forEach(function (h, i) { o[h] = r[i] === undefined ? '' : r[i]; });\n    return o;\n  });\n}\n// Sheets may return date cells as serial numbers — normalise to YYYY-MM-DD\nfunction toISO(d) {\n  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);\n  return String(d).slice(0, 10);\n}\nconst txs = toObjects(tabs.Transactions).map(function (t) {\n  return {\n    date: toISO(t.date),\n    type: t.type === 'Income' ? 'Income' : 'Expense',\n    category: String(t.category || ''),\n    payee: String(t.payee || ''),\n    amount: Number(t.amount) || 0,\n    account: String(t.account || ''),\n    note: String(t.note || '')\n  };\n});\nconst accounts = toObjects(tabs.Accounts);\nconst goals = toObjects(tabs.Goals);\nconst assets = toObjects(tabs.Assets);\n\nconst today = DateTime.now().setZone('Asia/Dhaka');\nconst ym = today.toFormat('yyyy-MM');\n\nconst curr = txs.filter(function (t) { return t.date.indexOf(ym) === 0; });\nconst income = curr.filter(function (t) { return t.type === 'Income'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst expenses = curr.filter(function (t) { return t.type === 'Expense'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst net = income - expenses;\nconst goalContrib = goals.reduce(function (s, g) { return s + (Number(g.monthly_contribution) || 0); }, 0);\n// Safe to spend = this month's net minus planned goal contributions\nconst safeToSpend = net - goalContrib;\nconst daysLeftInMonth = today.daysInMonth - today.day;\n\nconst accountBalances = accounts.map(function (a) {\n  const name = String(a.account_name || '');\n  const delta = txs.reduce(function (s, t) {\n    if (t.account !== name) return s;\n    return s + (t.type === 'Income' ? t.amount : -t.amount);\n  }, 0);\n  return { name: name, balance: (Number(a.starting_balance) || 0) + delta };\n});\n\nconst goalsOut = goals.map(function (g) {\n  const target = Number(g.target_amount) || 0;\n  const saved = Number(g.saved_so_far) || 0;\n  return {\n    name: String(g.goal_name || ''),\n    target: target,\n    saved: saved,\n    contribution: Number(g.monthly_contribution) || 0,\n    priority: String(g.priority || ''),\n    progressPct: target > 0 ? Math.round((saved / target) * 100) : 0\n  };\n});\n\nconst assetsOut = assets.map(function (a) {\n  const md = a.maturity_date ? toISO(a.maturity_date) : '';\n  return {\n    name: String(a.asset_name || ''),\n    type: String(a.type || ''),\n    value: Number(a.value) || 0,\n    institution: String(a.institution || ''),\n    daysToMaturity: md ? Math.ceil(DateTime.fromISO(md).diff(today, 'days').days) : null,\n    interestRate: Number(a.interest_rate) || 0,\n    maturityDate: md || null\n  };\n});\n\nconst recentTransactions = txs.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);\n\nconst catTotals = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense') catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;\n});\nconst spendingByCategory = Object.keys(catTotals)\n  .map(function (c) { return { category: c, amount: catTotals[c] }; })\n  .sort(function (a, b) { return b.amount - a.amount; });\n\nconst byMonth = {};\ntxs.forEach(function (t) {\n  const m = t.date.slice(0, 7);\n  if (!byMonth[m]) byMonth[m] = { income: 0, expenses: 0 };\n  byMonth[m][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst monthlyTrend = Object.keys(byMonth).sort().slice(-6).map(function (m) {\n  return {\n    month: DateTime.fromISO(m + '-01').toFormat('MMM'),\n    income: byMonth[m].income,\n    expenses: byMonth[m].expenses\n  };\n});\n\nreturn [{ json: {\n  metrics: { income: income, expenses: expenses, net: net, safeToSpend: safeToSpend, daysLeftInMonth: daysLeftInMonth },\n  accountBalances: accountBalances,\n  goals: goalsOut,\n  assets: assetsOut,\n  recentTransactions: recentTransactions,\n  spendingByCategory: spendingByCategory,\n  monthlyTrend: monthlyTrend\n} }];"
+      }
+    },
+    {
+      "id": "resp1",
+      "name": "Return Dashboard JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Dashboard Request": {
+      "main": [
+        [
+          {
+            "node": "Read All 4 Sheet Tabs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All 4 Sheet Tabs": {
+      "main": [
+        [
+          {
+            "node": "Compute Dashboard Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Dashboard Metrics": {
+      "main": [
+        [
+          {
+            "node": "Return Dashboard JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
+  "activeVersionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
+  "versionCounter": 3,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-12T05:20:54.580Z",
+      "createdAt": "2026-06-12T05:20:54.580Z",
+      "role": "workflow:owner",
+      "workflowId": "8GejOtDtsht0CfEJ",
+      "projectId": "WmvPfEaxd3Xp7T39",
+      "project": {
+        "updatedAt": "2026-02-28T09:18:59.607Z",
+        "createdAt": "2026-02-28T09:18:48.509Z",
+        "id": "WmvPfEaxd3Xp7T39",
+        "name": "Khondoker Arman <asim.headwaywriting@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-12T05:20:54.584Z",
+    "createdAt": "2026-06-12T05:20:54.584Z",
+    "versionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
+    "workflowId": "8GejOtDtsht0CfEJ",
+    "nodes": [
+      {
+        "id": "note1",
+        "name": "Overview",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -80,
+          -260
+        ],
+        "parameters": {
+          "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. DeepSeek never computes numbers.",
+          "height": 240,
+          "width": 520,
+          "color": 4
+        }
+      },
+      {
+        "id": "wh1",
+        "name": "Dashboard Request",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "finance-dashboard",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "62be05c5-5018-4168-88b5-4d477b16ceb0"
+      },
+      {
+        "id": "http1",
+        "name": "Read All 4 Sheet Tabs",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values:batchGet?ranges=Transactions&ranges=Accounts&ranges=Goals&ranges=Assets&valueRenderOption=UNFORMATTED_VALUE",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "eo7uMjjFUzvjTAGi",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "code1",
+        "name": "Compute Dashboard Metrics",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const res = $json;\nconst tabs = {};\nfor (const vr of (res.valueRanges || [])) {\n  const tab = vr.range.split('!')[0].replace(/'/g, '');\n  tabs[tab] = vr.values || [];\n}\nfunction toObjects(values) {\n  if (!values || values.length < 2) return [];\n  const head = values[0];\n  return values.slice(1).map(function (r) {\n    const o = {};\n    head.forEach(function (h, i) { o[h] = r[i] === undefined ? '' : r[i]; });\n    return o;\n  });\n}\n// Sheets may return date cells as serial numbers — normalise to YYYY-MM-DD\nfunction toISO(d) {\n  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);\n  return String(d).slice(0, 10);\n}\nconst txs = toObjects(tabs.Transactions).map(function (t) {\n  return {\n    date: toISO(t.date),\n    type: t.type === 'Income' ? 'Income' : 'Expense',\n    category: String(t.category || ''),\n    payee: String(t.payee || ''),\n    amount: Number(t.amount) || 0,\n    account: String(t.account || ''),\n    note: String(t.note || '')\n  };\n});\nconst accounts = toObjects(tabs.Accounts);\nconst goals = toObjects(tabs.Goals);\nconst assets = toObjects(tabs.Assets);\n\nconst today = DateTime.now().setZone('Asia/Dhaka');\nconst ym = today.toFormat('yyyy-MM');\n\nconst curr = txs.filter(function (t) { return t.date.indexOf(ym) === 0; });\nconst income = curr.filter(function (t) { return t.type === 'Income'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst expenses = curr.filter(function (t) { return t.type === 'Expense'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst net = income - expenses;\nconst goalContrib = goals.reduce(function (s, g) { return s + (Number(g.monthly_contribution) || 0); }, 0);\n// Safe to spend = this month's net minus planned goal contributions\nconst safeToSpend = net - goalContrib;\nconst daysLeftInMonth = today.daysInMonth - today.day;\n\nconst accountBalances = accounts.map(function (a) {\n  const name = String(a.account_name || '');\n  const delta = txs.reduce(function (s, t) {\n    if (t.account !== name) return s;\n    return s + (t.type === 'Income' ? t.amount : -t.amount);\n  }, 0);\n  return { name: name, balance: (Number(a.starting_balance) || 0) + delta };\n});\n\nconst goalsOut = goals.map(function (g) {\n  const target = Number(g.target_amount) || 0;\n  const saved = Number(g.saved_so_far) || 0;\n  return {\n    name: String(g.goal_name || ''),\n    target: target,\n    saved: saved,\n    contribution: Number(g.monthly_contribution) || 0,\n    priority: String(g.priority || ''),\n    progressPct: target > 0 ? Math.round((saved / target) * 100) : 0\n  };\n});\n\nconst assetsOut = assets.map(function (a) {\n  const md = a.maturity_date ? toISO(a.maturity_date) : '';\n  return {\n    name: String(a.asset_name || ''),\n    type: String(a.type || ''),\n    value: Number(a.value) || 0,\n    institution: String(a.institution || ''),\n    daysToMaturity: md ? Math.ceil(DateTime.fromISO(md).diff(today, 'days').days) : null,\n    interestRate: Number(a.interest_rate) || 0,\n    maturityDate: md || null\n  };\n});\n\nconst recentTransactions = txs.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);\n\nconst catTotals = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense') catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;\n});\nconst spendingByCategory = Object.keys(catTotals)\n  .map(function (c) { return { category: c, amount: catTotals[c] }; })\n  .sort(function (a, b) { return b.amount - a.amount; });\n\nconst byMonth = {};\ntxs.forEach(function (t) {\n  const m = t.date.slice(0, 7);\n  if (!byMonth[m]) byMonth[m] = { income: 0, expenses: 0 };\n  byMonth[m][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst monthlyTrend = Object.keys(byMonth).sort().slice(-6).map(function (m) {\n  return {\n    month: DateTime.fromISO(m + '-01').toFormat('MMM'),\n    income: byMonth[m].income,\n    expenses: byMonth[m].expenses\n  };\n});\n\nreturn [{ json: {\n  metrics: { income: income, expenses: expenses, net: net, safeToSpend: safeToSpend, daysLeftInMonth: daysLeftInMonth },\n  accountBalances: accountBalances,\n  goals: goalsOut,\n  assets: assetsOut,\n  recentTransactions: recentTransactions,\n  spendingByCategory: spendingByCategory,\n  monthlyTrend: monthlyTrend\n} }];"
+        }
+      },
+      {
+        "id": "resp1",
+        "name": "Return Dashboard JSON",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          660,
+          0
+        ],
+        "parameters": {
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "Dashboard Request": {
+        "main": [
+          [
+            {
+              "node": "Read All 4 Sheet Tabs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read All 4 Sheet Tabs": {
+        "main": [
+          [
+            {
+              "node": "Compute Dashboard Metrics",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Compute Dashboard Metrics": {
+        "main": [
+          [
+            {
+              "node": "Return Dashboard JSON",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Khondoker Arman",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-12T05:20:54.713Z",
+        "id": 484,
+        "workflowId": "8GejOtDtsht0CfEJ",
+        "versionId": "81dcf153-294f-46b0-85f9-42904e62cc0d",
+        "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    ]
+  }
+}
