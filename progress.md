@@ -32,6 +32,12 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 - `npm install recharts`; build SpendingByCategory (horizontal bar, CATEGORY_COLORS), MonthlyTrend (2-line chart), GoalsProgress (bar + 80% reference line); shared chart config from gemini.md; all in ResponsiveContainer.
 
+## Verified 2026-06-12 (end of session)
+
+- End-to-end pipeline confirmed with a real edit: Asim added a ৳48,000 income row to the Sheet → dashboard recalculated income/net/safe-to-spend/balances correctly within the 60s poll. Sheet → n8n → API → SWR all live.
+- Sample data note: bKash balance is negative (−5,600) by design of the seed; delete the 2026-06-12 Upwork 48,000 test row in the Sheet to return to baseline numbers (income 103,000).
+- **For Milestone 8 (Antigravity):** negative account balances currently render blue with a minus sign in the Accounts placeholder — design system says negatives must be orange (`brand-expense`). Fix when building AccountBalances.tsx.
+
 ## Notes / Decisions
 
 - `safeToSpend` = current-month net − total monthly goal contributions (defined in Workflow 1 Code node).
