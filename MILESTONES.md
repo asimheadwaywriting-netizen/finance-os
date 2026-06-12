@@ -164,9 +164,9 @@ git add . && git commit -m "Milestone 6: AI chatbot answers questions" && git ta
 **Who:** Claude Code | **Tag:** `v0.7-chat-log`
 **Goal:** Tell AI to log a transaction → it appears in Sheets → confirmation email arrives.
 
-- [ ] Extend Workflow 3: IF node detects `action=log_transaction` → internal call to Workflow 2
-- [ ] Add Gmail confirmation node (transaction fields in email body)
-- [ ] Test: "Log ৳850 food expense on bKash today" → logged in Sheets → email received
+- [x] Extend Workflow 3: IF node detects `action=log_transaction` → internal call to Workflow 2 (HTTP POST to its webhook; email sent AFTER the chat response so it can never delay/break the reply)
+- [x] Add Gmail confirmation node (transaction fields in email body; `Gmail account` credential, onError continue)
+- [x] Test: chat log command → "Logged: Expense of ৳10 — Miscellaneous via Cash..." → row confirmed via aggregator → confirmation email received in inbox → test row cleaned up (scripted in `n8n/deploy-milestone7.js`)
 
 **Commit & tag when:** Chat logs transaction + Gmail confirmation arrives.
 ```bash

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-12T07:57:55.990Z",
+  "updatedAt": "2026-06-12T18:18:13.667Z",
   "createdAt": "2026-06-12T07:57:55.990Z",
   "id": "5RkSgctHtRNq3mIR",
   "name": "ai-chat-handler",
@@ -17,8 +17,8 @@
         -280
       ],
       "parameters": {
-        "content": "## AI Chat Handler (Workflow 3)\nCalled by the dashboard via POST /api/chat with { message, history }. Fetches the live pre-computed dashboard JSON from Workflow 1, hands it to OpenAI (gpt-4o-mini) with a strict system prompt, and parses the response.\n\nRule: the AI never computes numbers — it only quotes Workflow 1 output.\n\nIf the user asks to log a transaction, the model returns action JSON which is parsed here. Actual logging is wired in Milestone 7.",
-        "height": 280,
+        "content": "## AI Chat Handler (Workflow 3)\nCalled by the dashboard via POST /api/chat with { message, history }. Fetches the live pre-computed dashboard JSON from Workflow 1, hands it to OpenAI (gpt-4o-mini) with a strict system prompt, and parses the response.\n\nRule: the AI never computes numbers — it only quotes Workflow 1 output.\n\nMilestone 7: when the model returns action=log_transaction, the transaction is POSTed to Workflow 2 (transaction-logger), the chat reply confirms the result, and a Gmail confirmation is sent AFTER the webhook response (email problems can never break the chat).",
+        "height": 300,
         "width": 540,
         "color": 4
       }
@@ -107,7 +107,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const res = $json;\nlet content = '';\ntry { content = res.choices[0].message.content || ''; } catch (e) { content = ''; }\nlet reply = String(content).trim();\nlet action = null;\nlet transaction = null;\n\n// Strip markdown code fences if the model wrapped its JSON\nconst BT = String.fromCharCode(96);\nconst FENCE = BT + BT + BT;\nlet cleaned = reply;\nif (cleaned.indexOf(FENCE) === 0) {\n  cleaned = cleaned.slice(cleaned.indexOf('\\n') + 1);\n  const endFence = cleaned.lastIndexOf(FENCE);\n  if (endFence !== -1) cleaned = cleaned.slice(0, endFence);\n  cleaned = cleaned.trim();\n}\n\nif (cleaned.indexOf('\"action\"') !== -1) {\n  try {\n    const start = cleaned.indexOf('{');\n    const end = cleaned.lastIndexOf('}');\n    const obj = JSON.parse(cleaned.slice(start, end + 1));\n    if (obj.action === 'log_transaction' && obj.transaction) {\n      action = 'log_transaction';\n      transaction = obj.transaction;\n      reply = 'Ready to log: ' + transaction.type + ' of ' + transaction.amount +\n        ' BDT — ' + transaction.category + ', payee ' + transaction.payee +\n        ', via ' + transaction.account + ' on ' + transaction.date +\n        '. (Auto-logging activates in Milestone 7.)';\n    }\n  } catch (e) { /* not valid action JSON — treat as plain reply */ }\n}\n\nif (!reply) reply = 'AI temporarily unavailable';\nreturn [{ json: { reply: reply, action: action, transaction: transaction } }];"
+        "jsCode": "const res = $json;\nlet content = '';\ntry { content = res.choices[0].message.content || ''; } catch (e) { content = ''; }\nlet reply = String(content).trim();\nlet action = null;\nlet transaction = null;\n\n// Strip markdown code fences if the model wrapped its JSON\nconst BT = String.fromCharCode(96);\nconst FENCE = BT + BT + BT;\nlet cleaned = reply;\nif (cleaned.indexOf(FENCE) === 0) {\n  cleaned = cleaned.slice(cleaned.indexOf('\\n') + 1);\n  const endFence = cleaned.lastIndexOf(FENCE);\n  if (endFence !== -1) cleaned = cleaned.slice(0, endFence);\n  cleaned = cleaned.trim();\n}\n\nif (cleaned.indexOf('\"action\"') !== -1) {\n  try {\n    const start = cleaned.indexOf('{');\n    const end = cleaned.lastIndexOf('}');\n    const obj = JSON.parse(cleaned.slice(start, end + 1));\n    if (obj.action === 'log_transaction' && obj.transaction) {\n      action = 'log_transaction';\n      transaction = obj.transaction;\n      reply = 'Logging your transaction now...';\n    }\n  } catch (e) { /* not valid action JSON — treat as plain reply */ }\n}\n\nif (!reply) reply = 'AI temporarily unavailable';\nreturn [{ json: { reply: reply, action: action, transaction: transaction } }];"
       }
     },
     {
@@ -116,12 +116,144 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1100,
+        1760,
         0
       ],
       "parameters": {
         "options": {}
       }
+    },
+    {
+      "id": "if1",
+      "name": "Is Log Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.action === \"log_transaction\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http3",
+      "name": "Log via Workflow 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.transaction) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "code3",
+      "name": "Build Logged Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const intent = $('Parse Intent').first().json;\nconst res = $json;\nconst status = Number(res.statusCode || 0);\nconst body = res.body || {};\nconst tx = (body && body.transaction) || intent.transaction || {};\nconst logged = status >= 200 && status < 300 && body.success === true;\nlet reply;\nif (logged) {\n  reply = 'Logged: ' + tx.type + ' of \\u09f3' + tx.amount + ' \\u2014 ' + tx.category +\n    ' via ' + tx.account + ' on ' + tx.date + ' (payee: ' + tx.payee +\n    '). A confirmation email is on its way.';\n} else {\n  const why = (body && body.error) ? body.error : ('logger returned status ' + status);\n  reply = \"I couldn't log that transaction \\u2014 \" + why + '. Nothing was written.';\n}\nreturn [{ json: { reply: reply, action: intent.action, transaction: tx, logged: logged } }];"
+      }
+    },
+    {
+      "id": "if2",
+      "name": "Email Confirmation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.logged === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gmail1",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        -120
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "sendTo": "asim.headwaywriting@gmail.com",
+        "subject": "=Finance OS: {{ $json.transaction.type }} ৳{{ $json.transaction.amount }} logged ({{ $json.transaction.category }})",
+        "emailType": "text",
+        "message": "=Logged via Finance OS chat:\n\nDate: {{ $json.transaction.date }}\nType: {{ $json.transaction.type }}\nCategory: {{ $json.transaction.category }}\nPayee: {{ $json.transaction.payee }}\nAmount: ৳{{ $json.transaction.amount }}\nAccount: {{ $json.transaction.account }}\nNote: {{ $json.transaction.note || \"-\" }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0KVFYj5t0Jons8bA",
+          "name": "Gmail account"
+        }
+      },
+      "webhookId": "684e655c-58ac-49c0-94c4-1be855379693"
     }
   ],
   "connections": {
@@ -173,7 +305,69 @@
       "main": [
         [
           {
+            "node": "Is Log Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Log Request?": {
+      "main": [
+        [
+          {
+            "node": "Log via Workflow 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Return Chat Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log via Workflow 2": {
+      "main": [
+        [
+          {
+            "node": "Build Logged Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Logged Reply": {
+      "main": [
+        [
+          {
+            "node": "Return Chat Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Chat Reply": {
+      "main": [
+        [
+          {
+            "node": "Email Confirmation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Confirmation?": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
             "type": "main",
             "index": 0
           }
@@ -190,9 +384,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
-  "activeVersionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
-  "versionCounter": 3,
+  "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
+  "activeVersionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
+  "versionCounter": 6,
   "triggerCount": 1,
   "shared": [
     {
@@ -215,9 +409,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-12T07:57:55.995Z",
-    "createdAt": "2026-06-12T07:57:55.995Z",
-    "versionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
+    "updatedAt": "2026-06-12T18:18:13.669Z",
+    "createdAt": "2026-06-12T18:18:13.669Z",
+    "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
     "workflowId": "5RkSgctHtRNq3mIR",
     "nodes": [
       {
@@ -230,8 +424,8 @@
           -280
         ],
         "parameters": {
-          "content": "## AI Chat Handler (Workflow 3)\nCalled by the dashboard via POST /api/chat with { message, history }. Fetches the live pre-computed dashboard JSON from Workflow 1, hands it to OpenAI (gpt-4o-mini) with a strict system prompt, and parses the response.\n\nRule: the AI never computes numbers — it only quotes Workflow 1 output.\n\nIf the user asks to log a transaction, the model returns action JSON which is parsed here. Actual logging is wired in Milestone 7.",
-          "height": 280,
+          "content": "## AI Chat Handler (Workflow 3)\nCalled by the dashboard via POST /api/chat with { message, history }. Fetches the live pre-computed dashboard JSON from Workflow 1, hands it to OpenAI (gpt-4o-mini) with a strict system prompt, and parses the response.\n\nRule: the AI never computes numbers — it only quotes Workflow 1 output.\n\nMilestone 7: when the model returns action=log_transaction, the transaction is POSTed to Workflow 2 (transaction-logger), the chat reply confirms the result, and a Gmail confirmation is sent AFTER the webhook response (email problems can never break the chat).",
+          "height": 300,
           "width": 540,
           "color": 4
         }
@@ -320,7 +514,7 @@
           0
         ],
         "parameters": {
-          "jsCode": "const res = $json;\nlet content = '';\ntry { content = res.choices[0].message.content || ''; } catch (e) { content = ''; }\nlet reply = String(content).trim();\nlet action = null;\nlet transaction = null;\n\n// Strip markdown code fences if the model wrapped its JSON\nconst BT = String.fromCharCode(96);\nconst FENCE = BT + BT + BT;\nlet cleaned = reply;\nif (cleaned.indexOf(FENCE) === 0) {\n  cleaned = cleaned.slice(cleaned.indexOf('\\n') + 1);\n  const endFence = cleaned.lastIndexOf(FENCE);\n  if (endFence !== -1) cleaned = cleaned.slice(0, endFence);\n  cleaned = cleaned.trim();\n}\n\nif (cleaned.indexOf('\"action\"') !== -1) {\n  try {\n    const start = cleaned.indexOf('{');\n    const end = cleaned.lastIndexOf('}');\n    const obj = JSON.parse(cleaned.slice(start, end + 1));\n    if (obj.action === 'log_transaction' && obj.transaction) {\n      action = 'log_transaction';\n      transaction = obj.transaction;\n      reply = 'Ready to log: ' + transaction.type + ' of ' + transaction.amount +\n        ' BDT — ' + transaction.category + ', payee ' + transaction.payee +\n        ', via ' + transaction.account + ' on ' + transaction.date +\n        '. (Auto-logging activates in Milestone 7.)';\n    }\n  } catch (e) { /* not valid action JSON — treat as plain reply */ }\n}\n\nif (!reply) reply = 'AI temporarily unavailable';\nreturn [{ json: { reply: reply, action: action, transaction: transaction } }];"
+          "jsCode": "const res = $json;\nlet content = '';\ntry { content = res.choices[0].message.content || ''; } catch (e) { content = ''; }\nlet reply = String(content).trim();\nlet action = null;\nlet transaction = null;\n\n// Strip markdown code fences if the model wrapped its JSON\nconst BT = String.fromCharCode(96);\nconst FENCE = BT + BT + BT;\nlet cleaned = reply;\nif (cleaned.indexOf(FENCE) === 0) {\n  cleaned = cleaned.slice(cleaned.indexOf('\\n') + 1);\n  const endFence = cleaned.lastIndexOf(FENCE);\n  if (endFence !== -1) cleaned = cleaned.slice(0, endFence);\n  cleaned = cleaned.trim();\n}\n\nif (cleaned.indexOf('\"action\"') !== -1) {\n  try {\n    const start = cleaned.indexOf('{');\n    const end = cleaned.lastIndexOf('}');\n    const obj = JSON.parse(cleaned.slice(start, end + 1));\n    if (obj.action === 'log_transaction' && obj.transaction) {\n      action = 'log_transaction';\n      transaction = obj.transaction;\n      reply = 'Logging your transaction now...';\n    }\n  } catch (e) { /* not valid action JSON — treat as plain reply */ }\n}\n\nif (!reply) reply = 'AI temporarily unavailable';\nreturn [{ json: { reply: reply, action: action, transaction: transaction } }];"
         }
       },
       {
@@ -329,12 +523,144 @@
         "type": "n8n-nodes-base.respondToWebhook",
         "typeVersion": 1.1,
         "position": [
-          1100,
+          1760,
           0
         ],
         "parameters": {
           "options": {}
         }
+      },
+      {
+        "id": "if1",
+        "name": "Is Log Request?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.action === \"log_transaction\" }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "http3",
+        "name": "Log via Workflow 2",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1320,
+          -120
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.transaction) }}",
+          "options": {
+            "timeout": 15000,
+            "response": {
+              "response": {
+                "neverError": true,
+                "fullResponse": true
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "code3",
+        "name": "Build Logged Reply",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1540,
+          -120
+        ],
+        "parameters": {
+          "jsCode": "const intent = $('Parse Intent').first().json;\nconst res = $json;\nconst status = Number(res.statusCode || 0);\nconst body = res.body || {};\nconst tx = (body && body.transaction) || intent.transaction || {};\nconst logged = status >= 200 && status < 300 && body.success === true;\nlet reply;\nif (logged) {\n  reply = 'Logged: ' + tx.type + ' of \\u09f3' + tx.amount + ' \\u2014 ' + tx.category +\n    ' via ' + tx.account + ' on ' + tx.date + ' (payee: ' + tx.payee +\n    '). A confirmation email is on its way.';\n} else {\n  const why = (body && body.error) ? body.error : ('logger returned status ' + status);\n  reply = \"I couldn't log that transaction \\u2014 \" + why + '. Nothing was written.';\n}\nreturn [{ json: { reply: reply, action: intent.action, transaction: tx, logged: logged } }];"
+        }
+      },
+      {
+        "id": "if2",
+        "name": "Email Confirmation?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1980,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.logged === true }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "gmail1",
+        "name": "Send Confirmation Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          2200,
+          -120
+        ],
+        "onError": "continueRegularOutput",
+        "parameters": {
+          "sendTo": "asim.headwaywriting@gmail.com",
+          "subject": "=Finance OS: {{ $json.transaction.type }} ৳{{ $json.transaction.amount }} logged ({{ $json.transaction.category }})",
+          "emailType": "text",
+          "message": "=Logged via Finance OS chat:\n\nDate: {{ $json.transaction.date }}\nType: {{ $json.transaction.type }}\nCategory: {{ $json.transaction.category }}\nPayee: {{ $json.transaction.payee }}\nAmount: ৳{{ $json.transaction.amount }}\nAccount: {{ $json.transaction.account }}\nNote: {{ $json.transaction.note || \"-\" }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "0KVFYj5t0Jons8bA",
+            "name": "Gmail account"
+          }
+        },
+        "webhookId": "684e655c-58ac-49c0-94c4-1be855379693"
       }
     ],
     "connections": {
@@ -386,7 +712,69 @@
         "main": [
           [
             {
+              "node": "Is Log Request?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Log Request?": {
+        "main": [
+          [
+            {
+              "node": "Log via Workflow 2",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
               "node": "Return Chat Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log via Workflow 2": {
+        "main": [
+          [
+            {
+              "node": "Build Logged Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Logged Reply": {
+        "main": [
+          [
+            {
+              "node": "Return Chat Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Return Chat Reply": {
+        "main": [
+          [
+            {
+              "node": "Email Confirmation?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Email Confirmation?": {
+        "main": [
+          [
+            {
+              "node": "Send Confirmation Email",
               "type": "main",
               "index": 0
             }
@@ -400,11 +788,19 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-12T07:57:56.143Z",
-        "id": 488,
+        "createdAt": "2026-06-12T18:18:13.716Z",
+        "id": 490,
         "workflowId": "5RkSgctHtRNq3mIR",
-        "versionId": "3d42216e-d359-4b39-a3d5-96f2cbc80cb4",
+        "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
         "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      },
+      {
+        "createdAt": "2026-06-12T18:18:13.702Z",
+        "id": 489,
+        "workflowId": "5RkSgctHtRNq3mIR",
+        "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
+        "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }
     ]
