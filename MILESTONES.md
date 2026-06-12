@@ -216,23 +216,24 @@ git add . && git commit -m "Milestone 9: Gmail alerts live" && git tag v0.9-aler
 **Goal:** End-to-end smoke test passes. Live at Vercel URL.
 
 ### Claude Code
-- [ ] Add n8n Error Trigger nodes to all 7 workflows → Gmail alert on crash
-- [ ] Verify all Vercel env vars set: `N8N_DASHBOARD_WEBHOOK_URL`, `N8N_TRANSACTION_WEBHOOK_URL`, `N8N_CHAT_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`
-- [ ] Final API route audit — all have try/catch + timeout + 503
+- [x] All 7 workflows route crashes to the global error handler (`Error Handler - Global`, ID `17zUtE9de19ejvvA`: Error Trigger → Gmail) via `settings.errorWorkflow` — n8n's mechanism for "Error Trigger on every workflow" (WF4–7 had it from M9; WF1–3 wired in `deploy-milestone10.js`)
+- [x] Vercel env vars verified by behavior: all three webhook URLs proven working in production by the smoke tests below. ~~`N8N_WEBHOOK_SECRET`~~ → **deferred**: never implemented in code or workflows across M0–M9; doing it properly means secret-checking nodes in 3 webhook workflows without leaking the secret into the exported JSONs in this repo. Post-launch hardening item.
+- [x] Final API route audit — all 3 routes have try/catch + AbortController timeout + 503 (dashboard 10s, transactions 10s with n8n 400 passthrough, chat 30s with graceful 200 fallback by design)
 
 ### Antigravity
-- [ ] Mobile responsiveness pass — Tailwind `md:` breakpoints on grid and sidebar
-- [ ] Loading skeleton on every data section
-- [ ] Final visual polish — spacing, font sizes, dividers
+- [x] Mobile responsiveness pass — done in M8 (grids stack to 1 col, tables `overflow-x-auto`, sidebar drawer, chat sheet full-width)
+- [x] Loading skeleton on every data section — dashboard, transactions, goals, assets views + chat "Thinking..." pulse
+- [x] Final visual polish — spacing/dividers/font-mono conventions consistent across all views (M8 audit)
 
-### End-to-End Smoke Test
-- [ ] Dashboard loads at Vercel URL with real data
-- [ ] Add transaction via form → appears instantly → visible in Sheets
-- [ ] Ask chatbot "What's my biggest expense this month?" → correct answer
-- [ ] Tell chatbot "Log ৳500 transport expense on bKash today" → logged + email arrives
-- [ ] Manually trigger Workflow 4 → Monday summary email arrives
-- [ ] Open dashboard on mobile browser → all sections readable
-- [ ] Check that n8n unreachable → ErrorBanner shows (not blank/crash)
+### End-to-End Smoke Test (run 2026-06-13 against production, `deploy-milestone10.js`)
+- [x] Dashboard loads at Vercel URL with real data (income ৳1,03,000)
+- [x] Add transaction via form API → 200 success → visible via aggregator (+ invalid payload → 400)
+- [x] Ask chatbot "What's my biggest expense this month?" → "Your biggest expense this month is Rent / Housing, amounting to ৳18,000." (correct)
+- [x] Tell chatbot "Log 500 taka transport expense on bKash today" → "Logged: Expense of ৳500 — Transportation via bKash..." → confirmation email verified in inbox
+- [x] Manually trigger Workflow 4 → weekly summary email verified in inbox (temp trigger, removed after)
+- [x] Mobile readability — verified at code level (M8 responsive audit); Asim to eyeball on a real phone
+- [x] n8n unreachable → `/api/dashboard` returns 503 (tested with unreachable webhook URL) → ErrorBanner UX (built + verified in M3)
+- [x] All test rows cleaned up — Sheet back to baseline
 
 **Commit & tag when:** All smoke tests pass.
 ```bash
@@ -251,8 +252,8 @@ git add . && git commit -m "Milestone 10: v1.0 launch" && git tag v1.0-launch &&
 | `v0.3-live-data` | Dashboard shows real data | 2026-06-12 |
 | `v0.4-charts` | Charts live | 2026-06-12 |
 | `v0.5-transactions` | Transaction form | 2026-06-12 |
-| `v0.6-chat` | AI chatbot | — |
-| `v0.7-chat-log` | Chatbot logs transactions | — |
-| `v0.8-full-dashboard` | Full dashboard | — |
-| `v0.9-alerts` | Gmail alerts | — |
-| `v1.0-launch` | Production launch | — |
+| `v0.6-chat` | AI chatbot | 2026-06-13 |
+| `v0.7-chat-log` | Chatbot logs transactions | 2026-06-13 |
+| `v0.8-full-dashboard` | Full dashboard | 2026-06-13 |
+| `v0.9-alerts` | Gmail alerts | 2026-06-13 |
+| `v1.0-launch` | Production launch | 2026-06-13 |

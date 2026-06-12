@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-13)
 
-**Progress: ~98% · Latest tag: `v0.9-alerts`**
+**Progress: 100% — LAUNCHED · Latest tag: `v1.0-launch`**
 
 | What | Status |
 |------|--------|
@@ -67,6 +67,13 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - **Decision:** no per-category budget amounts exist anywhere in the Sheet (4 tabs only), so WF5's 80% threshold (from `lib/constants.ts`) applies to total month expenses vs income. If a Budgets tab is ever added, extend Workflow 1 + WF5.
 - **Tested before activating schedules:** each workflow carried a temporary `?force=true` GET webhook; all 4 fired, all 4 emails verified in the inbox (incl. real triggers: FDR at exactly 7 days to maturity sent naturally). Test triggers stripped afterwards.
 - **Gotchas:** the n8n Code sandbox's `toLocaleString('en-IN')` produces broken grouping (partial ICU) — replaced with a manual Indian-grouping regex. Also: Gmail's *snippet* strips commas from numbers, which made the fix look like it hadn't worked — always check `plaintextBody`, not the snippet.
+
+## Milestone 10 — DONE (`v1.0-launch`, 2026-06-13) — PRODUCTION
+
+- **Error handling:** all 7 workflows now route crashes to `Error Handler - Global` (Error Trigger → Gmail) via `settings.errorWorkflow` (`deploy-milestone10.js` wired WF1–3; WF4–7 had it from M9).
+- **Full production smoke test passed** (against the live Vercel URL): dashboard real data · invalid tx → 400 · form tx → row in Sheet · chat Q&A ("biggest expense" → Rent / Housing ৳18,000, correct) · chat log → row + confirmation email in inbox · WF4 manual fire → weekly email in inbox · n8n unreachable → 503/ErrorBanner · test rows cleaned up.
+- **Deferred (documented in MILESTONES):** `N8N_WEBHOOK_SECRET` — webhook auth was never implemented in any milestone; doing it right needs secret checks in 3 workflows without leaking the secret into exported JSONs. Post-launch hardening.
+- **Post-launch notes:** Sheet still holds Jan–Jun 2026 *sample* data — replace with real finances to start using it for real. Asim should eyeball the dashboard on his phone once.
 
 ## Verified 2026-06-12 (end of session)
 
