@@ -1,4 +1,9 @@
-// Shared helpers. Owned by Claude Code (see CLAUDE.md ownership rules).
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 /**
  * Format an amount in Bangladeshi Taka with lakh-style grouping (e.g. ৳1,25,000).
@@ -26,12 +31,3 @@ export function formatDate(isoDate: string): string {
   })
 }
 
-/**
- * Join class names conditionally (lightweight clsx).
- * Usage: cn('base', isActive && 'active', maybeUndefined)
- */
-export function cn(
-  ...classes: (string | false | null | undefined)[]
-): string {
-  return classes.filter(Boolean).join(' ')
-}

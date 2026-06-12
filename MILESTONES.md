@@ -39,12 +39,12 @@ git push && git push --tags
 - [x] Update `gemini.md` with confirmed scaffold structure
 
 ### Antigravity
-- [ ] Install shadcn/ui: `npx shadcn@latest init`
-- [ ] Add components: `card button input table badge sheet skeleton separator`
-- [ ] Build `AppShell.tsx` + `Sidebar.tsx`
-- [ ] Build `MetricCard.tsx` + `MetricGrid.tsx` with hardcoded data
-- [ ] Build `SafeToSpendCard.tsx` — large blue mono number
-- [ ] Set dark background in `globals.css`
+- [x] Install shadcn/ui: `npx shadcn@latest init`
+- [x] Add components: `card button input table badge sheet skeleton separator`
+- [x] Build `AppShell.tsx` + `Sidebar.tsx`
+- [x] Build `MetricCard.tsx` + `MetricGrid.tsx` with hardcoded data
+- [x] Build `SafeToSpendCard.tsx` — large blue mono number
+- [x] Set dark background in `globals.css`
 - [ ] Push to GitHub → Vercel auto-deploys
 
 **Commit & tag when:** Dashboard loads at Vercel URL with fake numbers and dark layout.

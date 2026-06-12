@@ -1,27 +1,76 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+    --background: #0b0f17;
+    --foreground: #f3f4f6;
+    --card: #111726;
+    --card-foreground: #f9fafb;
+    --popover: #111726;
+    --popover-foreground: #f9fafb;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #182030;
+    --secondary-foreground: #f9fafb;
+    --muted: #182030;
+    --muted-foreground: #9ca3af;
+    --accent: #182030;
+    --accent-foreground: #f9fafb;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.1);
+    --input: rgba(255, 255, 255, 0.05);
+    --ring: #3b82f6;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+    --background: #0b0f17;
+    --foreground: #f3f4f6;
+    --card: #111726;
+    --card-foreground: #f9fafb;
+    --popover: #111726;
+    --popover-foreground: #f9fafb;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #182030;
+    --secondary-foreground: #f9fafb;
+    --muted: #182030;
+    --muted-foreground: #9ca3af;
+    --accent: #182030;
+    --accent-foreground: #f9fafb;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.1);
+    --input: rgba(255, 255, 255, 0.05);
+    --ring: #3b82f6;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  .border-border {
+    border-color: var(--border);
+  }
+
+  body, html {
+    background-color: #0b0f17;
+    color: #f3f4f6;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui;
   }
 }
