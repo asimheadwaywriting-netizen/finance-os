@@ -24,8 +24,8 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Next Up — Milestone 3 (`v0.3-live-data`)
 
-- **Claude Code:** replace `/api/dashboard` stub with proxy to the n8n webhook (try/catch, 10s AbortController, 503 on failure); add `N8N_DASHBOARD_WEBHOOK_URL` env var in Vercel (Asim does this in the Vercel dashboard).
-- **Antigravity:** `hooks/useDashboardData.ts` (SWR, 60s refresh, keepPreviousData), wire MetricGrid to live data, ErrorBanner on 503, skeletons.
+- [x] **Claude Code half DONE (2026-06-12):** `/api/dashboard` now proxies the n8n webhook (try/catch, 10s AbortController, 503 on failure). `N8N_DASHBOARD_WEBHOOK_URL` set in Vercel Production by Asim + `.env.local` for local dev. Tested locally: returns live Sheets data (income 103,000 / expenses 33,400).
+- [ ] **Antigravity:** `hooks/useDashboardData.ts` (SWR, 60s refresh, keepPreviousData), wire MetricGrid to live data, ErrorBanner on 503, skeletons. Tag `v0.3-live-data` after this.
 
 ## Notes / Decisions
 

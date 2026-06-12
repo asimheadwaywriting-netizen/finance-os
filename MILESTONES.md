@@ -79,9 +79,10 @@ git add . && git commit -m "Milestone 2: n8n reads Sheets" && git tag v0.2-n8n-s
 **Goal:** Every metric card and component shows real Google Sheets data.
 
 ### Claude Code
-- [ ] Replace stub in `app/api/dashboard/route.ts` with real n8n proxy call
-- [ ] Add try/catch + 10s AbortController timeout + 503 response
-- [ ] Verify TypeScript types match n8n response exactly
+- [x] Replace stub in `app/api/dashboard/route.ts` with real n8n proxy call
+- [x] Add try/catch + 10s AbortController timeout + 503 response
+- [x] Verify TypeScript types match n8n response exactly (tested locally against live webhook)
+- [x] `N8N_DASHBOARD_WEBHOOK_URL` set in Vercel (Production) + `.env.local` for local dev
 
 ### Antigravity
 - [ ] Build `hooks/useDashboardData.ts` — SWR, `refreshInterval: 60000`, `keepPreviousData: true`
