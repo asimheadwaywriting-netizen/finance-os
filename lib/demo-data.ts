@@ -74,12 +74,15 @@ export function getDemoDashboard(): DashboardData {
   })
 
   // Demo "money added to accounts" ≈ current balances + what's been spent.
-  const accountsStartingTotal =
-    base.accountBalances.reduce((s, a) => s + a.balance, 0) + base.metrics.expenses
+  const totalBalance = base.accountBalances.reduce((s, a) => s + a.balance, 0)
+  const accountsStartingTotal = totalBalance + base.metrics.expenses
+  // Safe to spend = current balances − money set aside for goals (floored at 0).
+  const goalContrib = base.goals.reduce((s, g) => s + (g.contribution || 0), 0)
+  const safeToSpend = Math.max(0, totalBalance - goalContrib)
 
   return {
     ...base,
-    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal },
+    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal, safeToSpend },
     assets,
     categories: demoCategories,
     dailyTrend: buildDailyTrend(),
