@@ -14,6 +14,8 @@ export default function AccountBalances({ accounts = [] }: AccountBalancesProps)
     )
   }
 
+  const total = accounts.reduce((sum, acc) => sum + acc.balance, 0)
+
   return (
     <div className="space-y-3">
       {accounts.map((acc, idx) => {
@@ -36,6 +38,19 @@ export default function AccountBalances({ accounts = [] }: AccountBalancesProps)
           </div>
         )
       })}
+
+      {/* Total = cash in hand (all accounts combined) */}
+      <div className="flex justify-between items-center px-2.5 pt-3 mt-1 border-t border-white/10">
+        <span className="text-xs font-semibold text-white uppercase tracking-wide">Total (cash in hand)</span>
+        <span
+          className={cn(
+            'text-sm font-mono font-bold',
+            total < 0 ? 'text-brand-expense' : 'text-white'
+          )}
+        >
+          {formatCurrency(total)}
+        </span>
+      </div>
     </div>
   )
 }

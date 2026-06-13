@@ -16,6 +16,8 @@ export interface MetricCardProps {
     isPositive: boolean
     label: string
   }
+  /** Small contrasting line under the value (e.g. "final at month-end"). */
+  caption?: string
   icon?: React.ReactNode
   loading?: boolean
 }
@@ -25,6 +27,7 @@ export default function MetricCard({
   value,
   type = 'neutral',
   delta,
+  caption,
   icon,
   loading = false
 }: MetricCardProps) {
@@ -98,6 +101,12 @@ export default function MetricCard({
                 {delta.value}%
               </span>
               <span className="text-[10px] text-gray-500">{delta.label}</span>
+            </div>
+          )}
+
+          {caption && (
+            <div className="mt-1 inline-block rounded bg-brand-warning/10 border border-brand-warning/20 px-2 py-1 text-[10px] font-mono text-brand-warning leading-tight">
+              {caption}
             </div>
           )}
         </div>

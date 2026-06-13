@@ -3,6 +3,7 @@
 import React from 'react'
 import MetricCard from './MetricCard'
 import { TrendingUp, TrendingDown, Wallet, Sparkles } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 import type { DashboardData } from '@/lib/types'
 
 export interface MetricGridProps {
@@ -32,7 +33,6 @@ export default function MetricGrid({
   // Calculate dynamic deltas if we have enough trend history
   let incomeDelta
   let expenseDelta
-  let netDelta
 
   if (trend.length >= 2) {
     const current = trend[trend.length - 1]
@@ -64,25 +64,25 @@ export default function MetricGrid({
       // If expenses went down, it's financially good (blue/positive). If expenses went up, it's orange/negative.
       // So expenseDelta.isPositive should be true if pct < 0 (expenses decreased). This is very elegant!
     }
-
-    // Net Delta
-    const currentNet = current.income - current.expenses
-    const previousNet = previous.income - previous.expenses
-    if (previousNet !== 0) {
-      const pct = ((currentNet - previousNet) / Math.abs(previousNet)) * 100
-      netDelta = {
-        value: parseFloat(Math.abs(pct).toFixed(1)),
-        isPositive: pct >= 0,
-        label: `vs ${previous.month}`
-      }
-    }
   }
+
+  // Cash in Hand = the real money held right now (sum of all account balances).
+  const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
+
+  // Net Saving is a month-END figure: it stays 0 during the month and locks in the
+  // month's net only on the last day (daysLeftInMonth === 0). The caption shows the
+  // running figure so the in-progress number isn't lost.
+  const isMonthEnd = data.daysLeftInMonth === 0
+  const netSaving = isMonthEnd ? data.net : 0
+  const netSavingCaption = isMonthEnd
+    ? 'Final saving for this month'
+    : `So far: ${formatCurrency(data.net)} · finalized at month-end`
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
       <MetricCard
         title="Cash in Hand"
-        value={data.income}
+        value={totalBalance}
         type="neutral"
         icon={<Wallet className="w-4 h-4 text-gray-400" />}
       />
@@ -102,9 +102,9 @@ export default function MetricGrid({
       />
       <MetricCard
         title="Net Saving"
-        value={data.net}
-        type={data.net >= 0 ? "income" : "expense"}
-        delta={netDelta}
+        value={netSaving}
+        type={netSaving >= 0 ? "income" : "expense"}
+        caption={netSavingCaption}
         icon={<Sparkles className="w-4 h-4 text-amber-500" />}
       />
     </div>
