@@ -17,9 +17,11 @@ export interface MonthlyTrendProps {
   data?: { income: number; expenses: number; [key: string]: string | number }[]
   /** Which field to use for the X axis ('month' or 'day'). */
   xKey?: string
+  /** Whether to plot the income line. Off for the daily view (income isn't logged daily). */
+  showIncome?: boolean
 }
 
-export default function MonthlyTrend({ data = [], xKey = 'month' }: MonthlyTrendProps) {
+export default function MonthlyTrend({ data = [], xKey = 'month', showIncome = true }: MonthlyTrendProps) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <LineChart
@@ -57,15 +59,17 @@ export default function MonthlyTrend({ data = [], xKey = 'month' }: MonthlyTrend
           iconSize={8}
           wrapperStyle={{ fontSize: 11, color: '#9ca3af' }}
         />
-        <Line
-          type="monotone"
-          dataKey="income"
-          name="income"
-          stroke="#3b82f6"
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 4, strokeWidth: 0 }}
-        />
+        {showIncome && (
+          <Line
+            type="monotone"
+            dataKey="income"
+            name="income"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+          />
+        )}
         <Line
           type="monotone"
           dataKey="expenses"
