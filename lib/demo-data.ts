@@ -73,9 +73,13 @@ export function getDemoDashboard(): DashboardData {
     }
   })
 
+  // Demo "money added to accounts" ≈ current balances + what's been spent.
+  const accountsStartingTotal =
+    base.accountBalances.reduce((s, a) => s + a.balance, 0) + base.metrics.expenses
+
   return {
     ...base,
-    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth() },
+    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal },
     assets,
     categories: demoCategories,
     dailyTrend: buildDailyTrend(),

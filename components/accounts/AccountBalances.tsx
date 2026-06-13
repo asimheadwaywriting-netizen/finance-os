@@ -39,9 +39,9 @@ export default function AccountBalances({ accounts = [] }: AccountBalancesProps)
         )
       })}
 
-      {/* Total = cash in hand (all accounts combined) */}
+      {/* Total across all accounts (current balances) */}
       <div className="flex justify-between items-center px-2.5 pt-3 mt-1 border-t border-white/10">
-        <span className="text-xs font-semibold text-white uppercase tracking-wide">Total (cash in hand)</span>
+        <span className="text-xs font-semibold text-white uppercase tracking-wide">Total</span>
         <span
           className={cn(
             'text-sm font-mono font-bold',

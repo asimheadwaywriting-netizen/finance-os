@@ -8,6 +8,8 @@ export interface DashboardData {
     net: number
     safeToSpend: number
     daysLeftInMonth: number
+    /** Sum of all account starting balances = money added to accounts ("Total Income So Far"). */
+    accountsStartingTotal: number
   }
   accountBalances: { name: string; balance: number }[]
   goals: {

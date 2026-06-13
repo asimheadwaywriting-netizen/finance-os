@@ -10,6 +10,7 @@ import { useTransactions } from '@/hooks/useTransactions'
 import { useGoals } from '@/hooks/useGoals'
 import { useAssets } from '@/hooks/useAssets'
 import { useCategories } from '@/hooks/useCategories'
+import { useAccounts } from '@/hooks/useAccounts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -21,6 +22,7 @@ import TransactionList from '@/components/transactions/TransactionList'
 import GoalForm from '@/components/goals/GoalForm'
 import AssetForm from '@/components/assets/AssetForm'
 import CategoryForm from '@/components/categories/CategoryForm'
+import AccountForm from '@/components/accounts/AccountForm'
 import { Skeleton } from '@/components/ui/skeleton'
 import ChatPanel from '@/components/chat/ChatPanel'
 import AccountBalances from '@/components/accounts/AccountBalances'
@@ -38,12 +40,14 @@ export default function Home() {
   const { addGoal, removeGoal, isSubmitting: isGoalSubmitting } = useGoals()
   const { addAsset, removeAsset, isSubmitting: isAssetSubmitting } = useAssets()
   const { addCategory, isSubmitting: isCategorySubmitting } = useCategories()
+  const { addAccount, isSubmitting: isAccountSubmitting } = useAccounts()
 
   // Add-form toggles + pending goal deletion (asset/transaction deletes are local
   // to their list components).
   const [showGoalForm, setShowGoalForm] = useState(false)
   const [showAssetForm, setShowAssetForm] = useState(false)
   const [showCategoryForm, setShowCategoryForm] = useState(false)
+  const [showAccountForm, setShowAccountForm] = useState(false)
   const [pendingGoalDelete, setPendingGoalDelete] = useState<string | null>(null)
   const [removingGoal, setRemovingGoal] = useState(false)
 
@@ -312,21 +316,39 @@ export default function Home() {
               categories={data.categories}
             />
 
-            {showCategoryForm ? (
+            {showCategoryForm && (
               <CategoryForm
                 onSubmit={async (c) => { await addCategory(c) }}
                 onCancel={() => setShowCategoryForm(false)}
                 isSubmitting={isCategorySubmitting}
               />
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full border-white/10 text-gray-300"
-                onClick={() => setShowCategoryForm(true)}
-              >
-                <Plus /> Add category
-              </Button>
+            )}
+            {showAccountForm && (
+              <AccountForm
+                onSubmit={async (a) => { await addAccount(a) }}
+                onCancel={() => setShowAccountForm(false)}
+                isSubmitting={isAccountSubmitting}
+              />
+            )}
+            {!showCategoryForm && !showAccountForm && (
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/10 text-gray-300"
+                  onClick={() => setShowCategoryForm(true)}
+                >
+                  <Plus /> Add category
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/10 text-gray-300"
+                  onClick={() => setShowAccountForm(true)}
+                >
+                  <Plus /> Add account
+                </Button>
+              </div>
             )}
           </div>
           <div className="lg:col-span-2">
