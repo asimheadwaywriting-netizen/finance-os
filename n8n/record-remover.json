@@ -1,0 +1,627 @@
+{
+  "updatedAt": "2026-06-13T07:31:27.699Z",
+  "createdAt": "2026-06-13T07:31:27.699Z",
+  "id": "XBpyHnVzjOHulNje",
+  "name": "record-remover",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "note1",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ],
+      "parameters": {
+        "content": "## Record Remover (Workflow 8)\nPOST /finance-delete { tab, match }. Reads the tab, finds the FIRST row matching every field in `match`, and deletes it via Sheets batchUpdate deleteDimension. 400 if no row matches — nothing is deleted.\n\nTransactions match on all 7 fields; Goals on goal_name; Assets on asset_name.",
+        "height": 240,
+        "width": 540,
+        "color": 4
+      }
+    },
+    {
+      "id": "wh1",
+      "name": "Delete Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "finance-delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "e5544460-e0e0-4f6b-93eb-533f6e7ad0ea"
+    },
+    {
+      "id": "prep1",
+      "name": "Prep Delete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nreturn [{ json: { tab: String(b.tab || ''), match: b.match || {} } }];"
+      }
+    },
+    {
+      "id": "http1",
+      "name": "Get Sheet Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {},
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI?fields=sheets.properties"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "eo7uMjjFUzvjTAGi",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "http2",
+      "name": "Read Tab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {},
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/' + encodeURIComponent($('Prep Delete').first().json.tab) + '?valueRenderOption=UNFORMATTED_VALUE' }}"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "eo7uMjjFUzvjTAGi",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "code1",
+      "name": "Find Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const prep = $('Prep Delete').first().json;\nconst tab = prep.tab;\nconst match = prep.match || {};\nconst meta = $('Get Sheet Meta').first().json;\nconst sheet = (meta.sheets || []).find(function (s) { return s.properties.title === tab; });\nif (!sheet) return [{ json: { found: false, error: 'tab not found: ' + tab } }];\nconst sheetId = sheet.properties.sheetId;\nconst values = ($('Read Tab').first().json.values) || [];\nif (values.length < 2) return [{ json: { found: false, error: 'no data rows in ' + tab } }];\nfunction toISO(d){ if (typeof d === 'number') return new Date(Math.round((d-25569)*86400000)).toISOString().slice(0,10); return String(d).slice(0,10); }\nconst head = values[0];\nlet foundIndex = -1;\nfor (let i = 1; i < values.length; i++) {\n  const o = {};\n  head.forEach(function (h, j) { o[h] = values[i][j] === undefined ? '' : values[i][j]; });\n  let ok = true;\n  for (const k of Object.keys(match)) {\n    let a = o[k]; let b = match[k];\n    if (k === 'amount') { a = Number(a); b = Number(b); }\n    else if (k === 'date') { a = toISO(a); b = toISO(b); }\n    else { a = String(a == null ? '' : a); b = String(b == null ? '' : b); }\n    if (String(a) !== String(b)) { ok = false; break; }\n  }\n  if (ok) { foundIndex = i; break; }\n}\nif (foundIndex === -1) return [{ json: { found: false, error: 'row not found' } }];\nreturn [{ json: { found: true, body: { requests: [{ deleteDimension: { range: {\n  sheetId: sheetId, dimension: 'ROWS', startIndex: foundIndex, endIndex: foundIndex + 1\n} } }] } } }];"
+      }
+    },
+    {
+      "id": "if1",
+      "name": "Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http3",
+      "name": "Delete Row",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        -120
+      ],
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {},
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI:batchUpdate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "eo7uMjjFUzvjTAGi",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "resp1",
+      "name": "Respond Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        -120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "resp2",
+      "name": "Respond Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Delete Request": {
+      "main": [
+        [
+          {
+            "node": "Prep Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Delete": {
+      "main": [
+        [
+          {
+            "node": "Get Sheet Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sheet Meta": {
+      "main": [
+        [
+          {
+            "node": "Read Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Tab": {
+      "main": [
+        [
+          {
+            "node": "Find Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Row": {
+      "main": [
+        [
+          {
+            "node": "Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found?": {
+      "main": [
+        [
+          {
+            "node": "Delete Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Row": {
+      "main": [
+        [
+          {
+            "node": "Respond Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dhaka",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "17zUtE9de19ejvvA",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
+  "activeVersionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
+  "versionCounter": 3,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-13T07:31:27.701Z",
+      "createdAt": "2026-06-13T07:31:27.701Z",
+      "role": "workflow:owner",
+      "workflowId": "XBpyHnVzjOHulNje",
+      "projectId": "WmvPfEaxd3Xp7T39",
+      "project": {
+        "updatedAt": "2026-02-28T09:18:59.607Z",
+        "createdAt": "2026-02-28T09:18:48.509Z",
+        "id": "WmvPfEaxd3Xp7T39",
+        "name": "Khondoker Arman <asim.headwaywriting@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-13T07:31:27.705Z",
+    "createdAt": "2026-06-13T07:31:27.705Z",
+    "versionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
+    "workflowId": "XBpyHnVzjOHulNje",
+    "nodes": [
+      {
+        "id": "note1",
+        "name": "Overview",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -80,
+          -260
+        ],
+        "parameters": {
+          "content": "## Record Remover (Workflow 8)\nPOST /finance-delete { tab, match }. Reads the tab, finds the FIRST row matching every field in `match`, and deletes it via Sheets batchUpdate deleteDimension. 400 if no row matches — nothing is deleted.\n\nTransactions match on all 7 fields; Goals on goal_name; Assets on asset_name.",
+          "height": 240,
+          "width": 540,
+          "color": 4
+        }
+      },
+      {
+        "id": "wh1",
+        "name": "Delete Request",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "finance-delete",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "e5544460-e0e0-4f6b-93eb-533f6e7ad0ea"
+      },
+      {
+        "id": "prep1",
+        "name": "Prep Delete",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const b = $json.body || {};\nreturn [{ json: { tab: String(b.tab || ''), match: b.match || {} } }];"
+        }
+      },
+      {
+        "id": "http1",
+        "name": "Get Sheet Meta",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "options": {},
+          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI?fields=sheets.properties"
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "eo7uMjjFUzvjTAGi",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "http2",
+        "name": "Read Tab",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          660,
+          0
+        ],
+        "parameters": {
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "options": {},
+          "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/' + encodeURIComponent($('Prep Delete').first().json.tab) + '?valueRenderOption=UNFORMATTED_VALUE' }}"
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "eo7uMjjFUzvjTAGi",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "code1",
+        "name": "Find Row",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const prep = $('Prep Delete').first().json;\nconst tab = prep.tab;\nconst match = prep.match || {};\nconst meta = $('Get Sheet Meta').first().json;\nconst sheet = (meta.sheets || []).find(function (s) { return s.properties.title === tab; });\nif (!sheet) return [{ json: { found: false, error: 'tab not found: ' + tab } }];\nconst sheetId = sheet.properties.sheetId;\nconst values = ($('Read Tab').first().json.values) || [];\nif (values.length < 2) return [{ json: { found: false, error: 'no data rows in ' + tab } }];\nfunction toISO(d){ if (typeof d === 'number') return new Date(Math.round((d-25569)*86400000)).toISOString().slice(0,10); return String(d).slice(0,10); }\nconst head = values[0];\nlet foundIndex = -1;\nfor (let i = 1; i < values.length; i++) {\n  const o = {};\n  head.forEach(function (h, j) { o[h] = values[i][j] === undefined ? '' : values[i][j]; });\n  let ok = true;\n  for (const k of Object.keys(match)) {\n    let a = o[k]; let b = match[k];\n    if (k === 'amount') { a = Number(a); b = Number(b); }\n    else if (k === 'date') { a = toISO(a); b = toISO(b); }\n    else { a = String(a == null ? '' : a); b = String(b == null ? '' : b); }\n    if (String(a) !== String(b)) { ok = false; break; }\n  }\n  if (ok) { foundIndex = i; break; }\n}\nif (foundIndex === -1) return [{ json: { found: false, error: 'row not found' } }];\nreturn [{ json: { found: true, body: { requests: [{ deleteDimension: { range: {\n  sheetId: sheetId, dimension: 'ROWS', startIndex: foundIndex, endIndex: foundIndex + 1\n} } }] } } }];"
+        }
+      },
+      {
+        "id": "if1",
+        "name": "Found?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.found }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "http3",
+        "name": "Delete Row",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1320,
+          -120
+        ],
+        "parameters": {
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "options": {},
+          "method": "POST",
+          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI:batchUpdate",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.body) }}"
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "eo7uMjjFUzvjTAGi",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "resp1",
+        "name": "Respond Deleted",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1540,
+          -120
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: true }) }}",
+          "options": {}
+        }
+      },
+      {
+        "id": "resp2",
+        "name": "Respond Not Found",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1320,
+          120
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+          "options": {
+            "responseCode": 400
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Delete Request": {
+        "main": [
+          [
+            {
+              "node": "Prep Delete",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prep Delete": {
+        "main": [
+          [
+            {
+              "node": "Get Sheet Meta",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Sheet Meta": {
+        "main": [
+          [
+            {
+              "node": "Read Tab",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Tab": {
+        "main": [
+          [
+            {
+              "node": "Find Row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Find Row": {
+        "main": [
+          [
+            {
+              "node": "Found?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Found?": {
+        "main": [
+          [
+            {
+              "node": "Delete Row",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond Not Found",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Delete Row": {
+        "main": [
+          [
+            {
+              "node": "Respond Deleted",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Khondoker Arman",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-13T07:31:27.830Z",
+        "id": 521,
+        "workflowId": "XBpyHnVzjOHulNje",
+        "versionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
+        "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      }
+    ]
+  }
+}

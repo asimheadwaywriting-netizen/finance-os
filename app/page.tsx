@@ -1,30 +1,71 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import AppShell from '@/components/layout/AppShell'
 import MetricGrid from '@/components/dashboard/MetricGrid'
 import SafeToSpendCard from '@/components/dashboard/SafeToSpendCard'
 import ErrorBanner from '@/components/dashboard/ErrorBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { useTransactions } from '@/hooks/useTransactions'
+import { useGoals } from '@/hooks/useGoals'
+import { useAssets } from '@/hooks/useAssets'
+import { useCategories } from '@/hooks/useCategories'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import SpendingByCategory from '@/components/charts/SpendingByCategory'
 import MonthlyTrend from '@/components/charts/MonthlyTrend'
 import GoalsProgress from '@/components/charts/GoalsProgress'
 import TransactionForm from '@/components/transactions/TransactionForm'
 import TransactionList from '@/components/transactions/TransactionList'
+import GoalForm from '@/components/goals/GoalForm'
+import AssetForm from '@/components/assets/AssetForm'
+import CategoryForm from '@/components/categories/CategoryForm'
 import { Skeleton } from '@/components/ui/skeleton'
 import ChatPanel from '@/components/chat/ChatPanel'
 import AccountBalances from '@/components/accounts/AccountBalances'
 import AssetMaturityTracker from '@/components/assets/AssetMaturityTracker'
+import { CATEGORY_COLORS } from '@/lib/constants'
 import { cn, formatCurrency } from '@/lib/utils'
+import { Plus, Trash2 } from 'lucide-react'
 
 export default function Home() {
   const [activeView, setActiveView] = useState<string>('dashboard')
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false)
   const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
   const { data, error, isLoading, mutate } = useDashboardData()
-  const { addTransaction, isSubmitting: isTxSubmitting } = useTransactions()
+  const { addTransaction, removeTransaction, isSubmitting: isTxSubmitting } = useTransactions()
+  const { addGoal, removeGoal, isSubmitting: isGoalSubmitting } = useGoals()
+  const { addAsset, removeAsset, isSubmitting: isAssetSubmitting } = useAssets()
+  const { addCategory, isSubmitting: isCategorySubmitting } = useCategories()
+
+  // Add-form toggles + pending goal deletion (asset/transaction deletes are local
+  // to their list components).
+  const [showGoalForm, setShowGoalForm] = useState(false)
+  const [showAssetForm, setShowAssetForm] = useState(false)
+  const [showCategoryForm, setShowCategoryForm] = useState(false)
+  const [pendingGoalDelete, setPendingGoalDelete] = useState<string | null>(null)
+  const [removingGoal, setRemovingGoal] = useState(false)
+
+  // Category → color map from live data, merged over the static palette fallback.
+  const categoryColors = useMemo(() => {
+    const map: Record<string, string> = { ...CATEGORY_COLORS }
+    for (const c of data?.categories ?? []) map[c.name] = c.color
+    return map
+  }, [data?.categories])
+
+  const confirmGoalDelete = async () => {
+    if (!pendingGoalDelete) return
+    setRemovingGoal(true)
+    try {
+      await removeGoal(pendingGoalDelete)
+      setPendingGoalDelete(null)
+    } catch {
+      // error surfaced by the hook; keep the dialog open
+    } finally {
+      setRemovingGoal(false)
+    }
+  }
 
   const renderDashboardView = () => {
     const hasError = !!error
@@ -212,6 +253,7 @@ export default function Home() {
         <TransactionList
           transactions={data.recentTransactions}
           title="Recent Transactions"
+          categoryColors={categoryColors}
         />
       </div>
     )
@@ -262,17 +304,37 @@ export default function Home() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <TransactionForm 
+          <div className="lg:col-span-1 space-y-4">
+            <TransactionForm
               onSubmit={async (tx) => { await addTransaction(tx) }}
               isSubmitting={isTxSubmitting}
               accounts={data.accountBalances}
+              categories={data.categories}
             />
+
+            {showCategoryForm ? (
+              <CategoryForm
+                onSubmit={async (c) => { await addCategory(c) }}
+                onCancel={() => setShowCategoryForm(false)}
+                isSubmitting={isCategorySubmitting}
+              />
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-white/10 text-gray-300"
+                onClick={() => setShowCategoryForm(true)}
+              >
+                <Plus /> Add category
+              </Button>
+            )}
           </div>
           <div className="lg:col-span-2">
-            <TransactionList 
-              transactions={data.recentTransactions} 
+            <TransactionList
+              transactions={data.recentTransactions}
               title="Transaction Ledger"
+              onRemove={removeTransaction}
+              categoryColors={categoryColors}
             />
           </div>
         </div>
@@ -313,6 +375,27 @@ export default function Home() {
           <ErrorBanner message={error.message} onRetry={mutate} />
         )}
 
+        <div className="flex justify-end">
+          {!showGoalForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 text-gray-300"
+              onClick={() => setShowGoalForm(true)}
+            >
+              <Plus /> Add Goal
+            </Button>
+          )}
+        </div>
+
+        {showGoalForm && (
+          <GoalForm
+            onSubmit={async (g) => { await addGoal(g) }}
+            onCancel={() => setShowGoalForm(false)}
+            isSubmitting={isGoalSubmitting}
+          />
+        )}
+
         {data.goals.length === 0 ? (
           <Card className="bg-card border-white/10">
             <CardContent className="p-8 text-center text-xs text-gray-500">
@@ -328,12 +411,23 @@ export default function Home() {
                   <CardContent className="p-6 space-y-4">
                     <div className="flex items-center justify-between gap-2">
                       <h4 className="text-sm font-medium text-white">{goal.name}</h4>
-                      <span className={cn(
-                        'text-[10px] px-2 py-0.5 rounded-full border font-mono whitespace-nowrap',
-                        priorityStyles[goal.priority] || priorityStyles.Low
-                      )}>
-                        {goal.priority}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                          'text-[10px] px-2 py-0.5 rounded-full border font-mono whitespace-nowrap',
+                          priorityStyles[goal.priority] || priorityStyles.Low
+                        )}>
+                          {goal.priority}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label="Remove goal"
+                          className="text-gray-500 hover:text-brand-expense"
+                          onClick={() => setPendingGoalDelete(goal.name)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -360,6 +454,15 @@ export default function Home() {
             })}
           </div>
         )}
+
+        <ConfirmDialog
+          open={pendingGoalDelete !== null}
+          title="Remove goal?"
+          description={pendingGoalDelete ? `"${pendingGoalDelete}" will be deleted from your sheet.` : ''}
+          loading={removingGoal}
+          onConfirm={confirmGoalDelete}
+          onCancel={() => setPendingGoalDelete(null)}
+        />
       </div>
     )
   }
@@ -388,7 +491,28 @@ export default function Home() {
           <ErrorBanner message={error.message} onRetry={mutate} />
         )}
 
-        <AssetMaturityTracker assets={data.assets} title="Asset Maturity Tracker" />
+        <div className="flex justify-end">
+          {!showAssetForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 text-gray-300"
+              onClick={() => setShowAssetForm(true)}
+            >
+              <Plus /> Add Asset
+            </Button>
+          )}
+        </div>
+
+        {showAssetForm && (
+          <AssetForm
+            onSubmit={async (a) => { await addAsset(a) }}
+            onCancel={() => setShowAssetForm(false)}
+            isSubmitting={isAssetSubmitting}
+          />
+        )}
+
+        <AssetMaturityTracker assets={data.assets} title="Asset Maturity Tracker" onRemove={removeAsset} />
       </div>
     )
   }

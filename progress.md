@@ -4,7 +4,7 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 
 ## Current State (2026-06-13)
 
-**Progress: 100% — LAUNCHED · Latest tag: `v1.0-launch`**
+**Progress: 100% — LAUNCHED · Latest tag: `v1.1-crud`**
 
 | What | Status |
 |------|--------|
@@ -74,6 +74,17 @@ Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this i
 - **Full production smoke test passed** (against the live Vercel URL): dashboard real data · invalid tx → 400 · form tx → row in Sheet · chat Q&A ("biggest expense" → Rent / Housing ৳18,000, correct) · chat log → row + confirmation email in inbox · WF4 manual fire → weekly email in inbox · n8n unreachable → 503/ErrorBanner · test rows cleaned up.
 - **Deferred (documented in MILESTONES):** `N8N_WEBHOOK_SECRET` — webhook auth was never implemented in any milestone; doing it right needs secret checks in 3 workflows without leaking the secret into exported JSONs. Post-launch hardening.
 - **Post-launch notes:** Sheet still holds Jan–Jun 2026 *sample* data — replace with real finances to start using it for real. Asim should eyeball the dashboard on his phone once.
+
+## Milestone 11 — DONE (`v1.1-crud`, 2026-06-13) — CRUD + dynamic categories
+
+Asim's 5-feature batch turning the append-only app into an editable one:
+- **Remove buttons** on transactions, goals, and assets — each behind a confirm dialog (`components/ui/confirm-dialog.tsx`). New **Workflow 8 `record-remover`** (`XBpyHnVzjOHulNje`, POST `/finance-delete`): reads the tab, finds the first row matching every `match` field (aggregator-style normalisation for dates/amounts), deletes via Sheets `batchUpdate deleteDimension`. 400 if no match — nothing deleted. Solves the row-identity problem without a Sheet schema change.
+- **Add goals / assets / categories** — new forms (`GoalForm`, `AssetForm`, `CategoryForm`) + **Workflow 9 `record-creator`** (`uwl7mHJ8oBzvraqb`, POST `/finance-create`): validates tab + value count, appends to Goals/Assets/Categories.
+- **Dynamic categories** — new `Categories` tab (name, type, color) seeded from `lib/constants.ts`; aggregator (WF1) now reads 5 tabs and returns `categories[]`; `TransactionForm` builds its dropdown from live data (constants = fallback). Chat handler (WF3) derives its category lists from live `categories[]` too, so chat-logging knows custom categories.
+- **No more per-transaction email** — removed WF3's `Email Confirmation?` + `Send Confirmation Email` nodes and the "confirmation email is on its way" reply text. The 4 scheduled digest workflows (WF4–7) are untouched and still active.
+- **Frontend:** new routes `DELETE /api/transactions`, `/api/goals`, `/api/assets`, `/api/categories` (share `lib/n8n-proxy.ts`); hooks `useTransactions.removeTransaction`, `useGoals`, `useAssets`, `useCategories`; all demo-mode safe.
+- **New env vars:** `N8N_CREATE_WEBHOOK_URL`, `N8N_DELETE_WEBHOOK_URL` — in `.env.local`; **must also be added to Vercel Production** or the add/remove buttons 503.
+- Deployed via `n8n/deploy-milestone11.js`; verified end-to-end (17/17 checks: add/remove for all 4 record types, invalid-input 400s, delete-missing 400, chat-log reply has no email mention). Test rows cleaned up.
 
 ## Demo Deployment — IN PROGRESS (2026-06-13)
 

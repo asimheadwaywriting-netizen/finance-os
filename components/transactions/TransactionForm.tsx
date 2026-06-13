@@ -4,23 +4,32 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { categoriesForType } from '@/lib/constants'
-import type { Transaction } from '@/lib/types'
+import type { DashboardData, Transaction } from '@/lib/types'
 
 export interface TransactionFormProps {
   onSubmit: (tx: Transaction) => Promise<void>
   isSubmitting?: boolean
   accounts?: { name: string; balance: number }[]
+  /** Live category list (Sheet-driven). Falls back to the static taxonomy when empty. */
+  categories?: DashboardData['categories']
 }
 
 export default function TransactionForm({
   onSubmit,
   isSubmitting = false,
-  accounts = []
+  accounts = [],
+  categories = []
 }: TransactionFormProps) {
   // Setup fallback accounts if SWR cache is empty
-  const accountOptions = accounts.length > 0 
-    ? accounts.map(a => a.name) 
+  const accountOptions = accounts.length > 0
+    ? accounts.map(a => a.name)
     : ['Cash', 'bKash', 'Bank - DBBL']
+
+  // Categories come from live data; fall back to the static taxonomy (demo / first load).
+  const categoriesFor = (t: 'Income' | 'Expense'): { name: string }[] => {
+    const live = categories.filter((c) => c.type === t)
+    return live.length > 0 ? live : categoriesForType(t)
+  }
 
   // Get current date in local YYYY-MM-DD
   const getTodayString = () => {
@@ -42,11 +51,12 @@ export default function TransactionForm({
 
   // Update category and account selections when options filter or change
   useEffect(() => {
-    const availableCategories = categoriesForType(type)
+    const availableCategories = categoriesFor(type)
     if (availableCategories.length > 0) {
       setCategory(availableCategories[0].name)
     }
-  }, [type])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, categories])
 
   useEffect(() => {
     if (accounts.length > 0) {
@@ -155,7 +165,7 @@ export default function TransactionForm({
                 disabled={isSubmitting}
                 className={inputStyles}
               >
-                {categoriesForType(type).map((cat) => (
+                {categoriesFor(type).map((cat) => (
                   <option key={cat.name} value={cat.name} className="bg-card text-white">
                     {cat.name}
                   </option>

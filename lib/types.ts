@@ -30,6 +30,7 @@ export interface DashboardData {
   recentTransactions: Transaction[]
   spendingByCategory: { category: string; amount: number }[]
   monthlyTrend: { month: string; income: number; expenses: number }[]
+  categories: { name: string; type: 'Income' | 'Expense'; color: string }[]
 }
 
 export interface Transaction {

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-12T18:18:13.667Z",
+  "updatedAt": "2026-06-13T07:31:28.753Z",
   "createdAt": "2026-06-12T07:57:55.990Z",
   "id": "5RkSgctHtRNq3mIR",
   "name": "ai-chat-handler",
@@ -66,7 +66,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const req = $('Chat Message Received').first().json.body || {};\nconst message = String(req.message || '');\nconst history = Array.isArray(req.history) ? req.history.slice(-10) : [];\nconst dash = $json;\nconst today = DateTime.now().setZone('Asia/Dhaka').toFormat('yyyy-MM-dd');\n\nconst expenseCats = 'Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous';\nconst incomeCats = 'Salary, Freelance Income, Other Income';\nconst accounts = (dash.accountBalances || []).map(function (a) { return a.name; }).join(', ');\n\nconst sys = [\n  'You are Finance OS Assistant, the personal finance assistant for Asim. Currency is BDT (Bangladeshi Taka, symbol \\u09f3).',\n  'Today is ' + today + '.',\n  'Below is the pre-computed dashboard data (DATA). It was calculated deterministically — trust it completely.',\n  'RULES:',\n  '1. NEVER calculate, add, subtract, or derive new numbers. Only quote numbers that literally appear in DATA. If the answer needs math that is not already in DATA, say you only have the pre-computed figures and name the closest one.',\n  '2. Keep replies short, plain, and friendly. Format amounts like \\u09f3,1,234.',\n  '3. If the user asks to log, record, or add a transaction or expense/income, respond with ONLY this JSON and no other text:',\n  '{\"action\":\"log_transaction\",\"transaction\":{\"date\":\"YYYY-MM-DD\",\"type\":\"Income or Expense\",\"category\":\"<pick one>\",\"payee\":\"<who was paid or who paid>\",\"amount\":<number>,\"account\":\"<pick one>\",\"note\":\"\"}}',\n  '   - Use today (' + today + ') unless another date is given.',\n  '   - Expense categories: ' + expenseCats + '.',\n  '   - Income categories: ' + incomeCats + '.',\n  '   - Accounts: ' + accounts + '. Default to Cash if unclear.',\n  '   - If payee is not mentioned, use a sensible short label from context.',\n  '4. For anything not about personal finance, politely steer back to finances.',\n  'DATA: ' + JSON.stringify(dash)\n].join('\\n');\n\nconst messages = [{ role: 'system', content: sys }];\nfor (const h of history) {\n  if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {\n    messages.push({ role: h.role, content: String(h.content) });\n  }\n}\nmessages.push({ role: 'user', content: message });\n\nreturn [{ json: { payload: { model: 'gpt-4o-mini', messages: messages, temperature: 0.3, max_tokens: 500 } } }];"
+        "jsCode": "const req = $('Chat Message Received').first().json.body || {};\nconst message = String(req.message || '');\nconst history = Array.isArray(req.history) ? req.history.slice(-10) : [];\nconst dash = $json;\nconst today = DateTime.now().setZone('Asia/Dhaka').toFormat('yyyy-MM-dd');\n\nconst allCats = Array.isArray(dash.categories) ? dash.categories : [];\nconst expenseCats = allCats.filter(function (c) { return c.type === 'Expense'; }).map(function (c) { return c.name; }).join(', ') || 'Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous';\nconst incomeCats = allCats.filter(function (c) { return c.type === 'Income'; }).map(function (c) { return c.name; }).join(', ') || 'Salary, Freelance Income, Other Income';\nconst accounts = (dash.accountBalances || []).map(function (a) { return a.name; }).join(', ');\n\nconst sys = [\n  'You are Finance OS Assistant, the personal finance assistant for Asim. Currency is BDT (Bangladeshi Taka, symbol \\u09f3).',\n  'Today is ' + today + '.',\n  'Below is the pre-computed dashboard data (DATA). It was calculated deterministically — trust it completely.',\n  'RULES:',\n  '1. NEVER calculate, add, subtract, or derive new numbers. Only quote numbers that literally appear in DATA. If the answer needs math that is not already in DATA, say you only have the pre-computed figures and name the closest one.',\n  '2. Keep replies short, plain, and friendly. Format amounts like \\u09f3,1,234.',\n  '3. If the user asks to log, record, or add a transaction or expense/income, respond with ONLY this JSON and no other text:',\n  '{\"action\":\"log_transaction\",\"transaction\":{\"date\":\"YYYY-MM-DD\",\"type\":\"Income or Expense\",\"category\":\"<pick one>\",\"payee\":\"<who was paid or who paid>\",\"amount\":<number>,\"account\":\"<pick one>\",\"note\":\"\"}}',\n  '   - Use today (' + today + ') unless another date is given.',\n  '   - Expense categories: ' + expenseCats + '.',\n  '   - Income categories: ' + incomeCats + '.',\n  '   - Accounts: ' + accounts + '. Default to Cash if unclear.',\n  '   - If payee is not mentioned, use a sensible short label from context.',\n  '4. For anything not about personal finance, politely steer back to finances.',\n  'DATA: ' + JSON.stringify(dash)\n].join('\\n');\n\nconst messages = [{ role: 'system', content: sys }];\nfor (const h of history) {\n  if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {\n    messages.push({ role: h.role, content: String(h.content) });\n  }\n}\nmessages.push({ role: 'user', content: message });\n\nreturn [{ json: { payload: { model: 'gpt-4o-mini', messages: messages, temperature: 0.3, max_tokens: 500 } } }];"
       }
     },
     {
@@ -192,68 +192,8 @@
         -120
       ],
       "parameters": {
-        "jsCode": "const intent = $('Parse Intent').first().json;\nconst res = $json;\nconst status = Number(res.statusCode || 0);\nconst body = res.body || {};\nconst tx = (body && body.transaction) || intent.transaction || {};\nconst logged = status >= 200 && status < 300 && body.success === true;\nlet reply;\nif (logged) {\n  reply = 'Logged: ' + tx.type + ' of \\u09f3' + tx.amount + ' \\u2014 ' + tx.category +\n    ' via ' + tx.account + ' on ' + tx.date + ' (payee: ' + tx.payee +\n    '). A confirmation email is on its way.';\n} else {\n  const why = (body && body.error) ? body.error : ('logger returned status ' + status);\n  reply = \"I couldn't log that transaction \\u2014 \" + why + '. Nothing was written.';\n}\nreturn [{ json: { reply: reply, action: intent.action, transaction: tx, logged: logged } }];"
+        "jsCode": "const intent = $('Parse Intent').first().json;\nconst res = $json;\nconst status = Number(res.statusCode || 0);\nconst body = res.body || {};\nconst tx = (body && body.transaction) || intent.transaction || {};\nconst logged = status >= 200 && status < 300 && body.success === true;\nlet reply;\nif (logged) {\n  reply = 'Logged: ' + tx.type + ' of \\u09f3' + tx.amount + ' \\u2014 ' + tx.category +\n    ' via ' + tx.account + ' on ' + tx.date + ' (payee: ' + tx.payee +\n    ').';\n} else {\n  const why = (body && body.error) ? body.error : ('logger returned status ' + status);\n  reply = \"I couldn't log that transaction \\u2014 \" + why + '. Nothing was written.';\n}\nreturn [{ json: { reply: reply, action: intent.action, transaction: tx, logged: logged } }];"
       }
-    },
-    {
-      "id": "if2",
-      "name": "Email Confirmation?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1980,
-        0
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "c1",
-              "leftValue": "={{ $json.logged === true }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "gmail1",
-      "name": "Send Confirmation Email",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        2200,
-        -120
-      ],
-      "onError": "continueRegularOutput",
-      "parameters": {
-        "sendTo": "asim.headwaywriting@gmail.com",
-        "subject": "=Finance OS: {{ $json.transaction.type }} ৳{{ $json.transaction.amount }} logged ({{ $json.transaction.category }})",
-        "emailType": "text",
-        "message": "=Logged via Finance OS chat:\n\nDate: {{ $json.transaction.date }}\nType: {{ $json.transaction.type }}\nCategory: {{ $json.transaction.category }}\nPayee: {{ $json.transaction.payee }}\nAmount: ৳{{ $json.transaction.amount }}\nAccount: {{ $json.transaction.account }}\nNote: {{ $json.transaction.note || \"-\" }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "0KVFYj5t0Jons8bA",
-          "name": "Gmail account"
-        }
-      },
-      "webhookId": "684e655c-58ac-49c0-94c4-1be855379693"
     }
   ],
   "connections": {
@@ -351,42 +291,21 @@
           }
         ]
       ]
-    },
-    "Return Chat Reply": {
-      "main": [
-        [
-          {
-            "node": "Email Confirmation?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Email Confirmation?": {
-      "main": [
-        [
-          {
-            "node": "Send Confirmation Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "timezone": "Asia/Dhaka",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "17zUtE9de19ejvvA"
   },
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
-  "activeVersionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
-  "versionCounter": 6,
+  "versionId": "eb5cf1cb-07a2-4079-a9b0-b1dd9c5c5d24",
+  "activeVersionId": "eb5cf1cb-07a2-4079-a9b0-b1dd9c5c5d24",
+  "versionCounter": 12,
   "triggerCount": 1,
   "shared": [
     {
@@ -409,9 +328,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-12T18:18:13.669Z",
-    "createdAt": "2026-06-12T18:18:13.669Z",
-    "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
+    "updatedAt": "2026-06-13T07:31:28.755Z",
+    "createdAt": "2026-06-13T07:31:28.755Z",
+    "versionId": "eb5cf1cb-07a2-4079-a9b0-b1dd9c5c5d24",
     "workflowId": "5RkSgctHtRNq3mIR",
     "nodes": [
       {
@@ -473,7 +392,7 @@
           0
         ],
         "parameters": {
-          "jsCode": "const req = $('Chat Message Received').first().json.body || {};\nconst message = String(req.message || '');\nconst history = Array.isArray(req.history) ? req.history.slice(-10) : [];\nconst dash = $json;\nconst today = DateTime.now().setZone('Asia/Dhaka').toFormat('yyyy-MM-dd');\n\nconst expenseCats = 'Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous';\nconst incomeCats = 'Salary, Freelance Income, Other Income';\nconst accounts = (dash.accountBalances || []).map(function (a) { return a.name; }).join(', ');\n\nconst sys = [\n  'You are Finance OS Assistant, the personal finance assistant for Asim. Currency is BDT (Bangladeshi Taka, symbol \\u09f3).',\n  'Today is ' + today + '.',\n  'Below is the pre-computed dashboard data (DATA). It was calculated deterministically — trust it completely.',\n  'RULES:',\n  '1. NEVER calculate, add, subtract, or derive new numbers. Only quote numbers that literally appear in DATA. If the answer needs math that is not already in DATA, say you only have the pre-computed figures and name the closest one.',\n  '2. Keep replies short, plain, and friendly. Format amounts like \\u09f3,1,234.',\n  '3. If the user asks to log, record, or add a transaction or expense/income, respond with ONLY this JSON and no other text:',\n  '{\"action\":\"log_transaction\",\"transaction\":{\"date\":\"YYYY-MM-DD\",\"type\":\"Income or Expense\",\"category\":\"<pick one>\",\"payee\":\"<who was paid or who paid>\",\"amount\":<number>,\"account\":\"<pick one>\",\"note\":\"\"}}',\n  '   - Use today (' + today + ') unless another date is given.',\n  '   - Expense categories: ' + expenseCats + '.',\n  '   - Income categories: ' + incomeCats + '.',\n  '   - Accounts: ' + accounts + '. Default to Cash if unclear.',\n  '   - If payee is not mentioned, use a sensible short label from context.',\n  '4. For anything not about personal finance, politely steer back to finances.',\n  'DATA: ' + JSON.stringify(dash)\n].join('\\n');\n\nconst messages = [{ role: 'system', content: sys }];\nfor (const h of history) {\n  if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {\n    messages.push({ role: h.role, content: String(h.content) });\n  }\n}\nmessages.push({ role: 'user', content: message });\n\nreturn [{ json: { payload: { model: 'gpt-4o-mini', messages: messages, temperature: 0.3, max_tokens: 500 } } }];"
+          "jsCode": "const req = $('Chat Message Received').first().json.body || {};\nconst message = String(req.message || '');\nconst history = Array.isArray(req.history) ? req.history.slice(-10) : [];\nconst dash = $json;\nconst today = DateTime.now().setZone('Asia/Dhaka').toFormat('yyyy-MM-dd');\n\nconst allCats = Array.isArray(dash.categories) ? dash.categories : [];\nconst expenseCats = allCats.filter(function (c) { return c.type === 'Expense'; }).map(function (c) { return c.name; }).join(', ') || 'Groceries, Food & Dining, Bills & Utilities, Rent / Housing, Transportation, Home Repair, Health & Medical, Date Night / Entertainment, Shopping & Personal, Education, Family & Gifts, Subscriptions, Savings & Investments, Debt Payment, Miscellaneous';\nconst incomeCats = allCats.filter(function (c) { return c.type === 'Income'; }).map(function (c) { return c.name; }).join(', ') || 'Salary, Freelance Income, Other Income';\nconst accounts = (dash.accountBalances || []).map(function (a) { return a.name; }).join(', ');\n\nconst sys = [\n  'You are Finance OS Assistant, the personal finance assistant for Asim. Currency is BDT (Bangladeshi Taka, symbol \\u09f3).',\n  'Today is ' + today + '.',\n  'Below is the pre-computed dashboard data (DATA). It was calculated deterministically — trust it completely.',\n  'RULES:',\n  '1. NEVER calculate, add, subtract, or derive new numbers. Only quote numbers that literally appear in DATA. If the answer needs math that is not already in DATA, say you only have the pre-computed figures and name the closest one.',\n  '2. Keep replies short, plain, and friendly. Format amounts like \\u09f3,1,234.',\n  '3. If the user asks to log, record, or add a transaction or expense/income, respond with ONLY this JSON and no other text:',\n  '{\"action\":\"log_transaction\",\"transaction\":{\"date\":\"YYYY-MM-DD\",\"type\":\"Income or Expense\",\"category\":\"<pick one>\",\"payee\":\"<who was paid or who paid>\",\"amount\":<number>,\"account\":\"<pick one>\",\"note\":\"\"}}',\n  '   - Use today (' + today + ') unless another date is given.',\n  '   - Expense categories: ' + expenseCats + '.',\n  '   - Income categories: ' + incomeCats + '.',\n  '   - Accounts: ' + accounts + '. Default to Cash if unclear.',\n  '   - If payee is not mentioned, use a sensible short label from context.',\n  '4. For anything not about personal finance, politely steer back to finances.',\n  'DATA: ' + JSON.stringify(dash)\n].join('\\n');\n\nconst messages = [{ role: 'system', content: sys }];\nfor (const h of history) {\n  if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {\n    messages.push({ role: h.role, content: String(h.content) });\n  }\n}\nmessages.push({ role: 'user', content: message });\n\nreturn [{ json: { payload: { model: 'gpt-4o-mini', messages: messages, temperature: 0.3, max_tokens: 500 } } }];"
         }
       },
       {
@@ -599,68 +518,8 @@
           -120
         ],
         "parameters": {
-          "jsCode": "const intent = $('Parse Intent').first().json;\nconst res = $json;\nconst status = Number(res.statusCode || 0);\nconst body = res.body || {};\nconst tx = (body && body.transaction) || intent.transaction || {};\nconst logged = status >= 200 && status < 300 && body.success === true;\nlet reply;\nif (logged) {\n  reply = 'Logged: ' + tx.type + ' of \\u09f3' + tx.amount + ' \\u2014 ' + tx.category +\n    ' via ' + tx.account + ' on ' + tx.date + ' (payee: ' + tx.payee +\n    '). A confirmation email is on its way.';\n} else {\n  const why = (body && body.error) ? body.error : ('logger returned status ' + status);\n  reply = \"I couldn't log that transaction \\u2014 \" + why + '. Nothing was written.';\n}\nreturn [{ json: { reply: reply, action: intent.action, transaction: tx, logged: logged } }];"
+          "jsCode": "const intent = $('Parse Intent').first().json;\nconst res = $json;\nconst status = Number(res.statusCode || 0);\nconst body = res.body || {};\nconst tx = (body && body.transaction) || intent.transaction || {};\nconst logged = status >= 200 && status < 300 && body.success === true;\nlet reply;\nif (logged) {\n  reply = 'Logged: ' + tx.type + ' of \\u09f3' + tx.amount + ' \\u2014 ' + tx.category +\n    ' via ' + tx.account + ' on ' + tx.date + ' (payee: ' + tx.payee +\n    ').';\n} else {\n  const why = (body && body.error) ? body.error : ('logger returned status ' + status);\n  reply = \"I couldn't log that transaction \\u2014 \" + why + '. Nothing was written.';\n}\nreturn [{ json: { reply: reply, action: intent.action, transaction: tx, logged: logged } }];"
         }
-      },
-      {
-        "id": "if2",
-        "name": "Email Confirmation?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          1980,
-          0
-        ],
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict"
-            },
-            "conditions": [
-              {
-                "id": "c1",
-                "leftValue": "={{ $json.logged === true }}",
-                "rightValue": "",
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              }
-            ],
-            "combinator": "and"
-          },
-          "options": {}
-        }
-      },
-      {
-        "id": "gmail1",
-        "name": "Send Confirmation Email",
-        "type": "n8n-nodes-base.gmail",
-        "typeVersion": 2.1,
-        "position": [
-          2200,
-          -120
-        ],
-        "onError": "continueRegularOutput",
-        "parameters": {
-          "sendTo": "asim.headwaywriting@gmail.com",
-          "subject": "=Finance OS: {{ $json.transaction.type }} ৳{{ $json.transaction.amount }} logged ({{ $json.transaction.category }})",
-          "emailType": "text",
-          "message": "=Logged via Finance OS chat:\n\nDate: {{ $json.transaction.date }}\nType: {{ $json.transaction.type }}\nCategory: {{ $json.transaction.category }}\nPayee: {{ $json.transaction.payee }}\nAmount: ৳{{ $json.transaction.amount }}\nAccount: {{ $json.transaction.account }}\nNote: {{ $json.transaction.note || \"-\" }}",
-          "options": {
-            "appendAttribution": false
-          }
-        },
-        "credentials": {
-          "gmailOAuth2": {
-            "id": "0KVFYj5t0Jons8bA",
-            "name": "Gmail account"
-          }
-        },
-        "webhookId": "684e655c-58ac-49c0-94c4-1be855379693"
       }
     ],
     "connections": {
@@ -758,28 +617,6 @@
             }
           ]
         ]
-      },
-      "Return Chat Reply": {
-        "main": [
-          [
-            {
-              "node": "Email Confirmation?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Email Confirmation?": {
-        "main": [
-          [
-            {
-              "node": "Send Confirmation Email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
       }
     },
     "authors": "Khondoker Arman",
@@ -788,18 +625,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-12T18:18:13.716Z",
-        "id": 490,
+        "createdAt": "2026-06-13T07:31:28.798Z",
+        "id": 526,
         "workflowId": "5RkSgctHtRNq3mIR",
-        "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
+        "versionId": "eb5cf1cb-07a2-4079-a9b0-b1dd9c5c5d24",
         "event": "activated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       },
       {
-        "createdAt": "2026-06-12T18:18:13.702Z",
-        "id": 489,
+        "createdAt": "2026-06-13T07:31:28.785Z",
+        "id": 525,
         "workflowId": "5RkSgctHtRNq3mIR",
-        "versionId": "75fca5f1-5fc6-47f5-b3a0-daa50600df45",
+        "versionId": "eb5cf1cb-07a2-4079-a9b0-b1dd9c5c5d24",
         "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }

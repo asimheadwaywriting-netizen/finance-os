@@ -3,9 +3,18 @@
 // NEXT_PUBLIC_DEMO_MODE === 'true'. Never used by the real production app.
 
 import sample from '@/n8n/sample-dashboard-response.json'
+import { CATEGORY_LIST } from '@/lib/constants'
 import type { DashboardData } from '@/lib/types'
 
 const base = sample as DashboardData
+
+// The demo's category list mirrors the static seed taxonomy (the real app reads
+// these from the Sheet's Categories tab).
+const demoCategories: DashboardData['categories'] = CATEGORY_LIST.map((c) => ({
+  name: c.name,
+  type: c.type,
+  color: c.color,
+}))
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -47,6 +56,7 @@ export function getDemoDashboard(): DashboardData {
     ...base,
     metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth() },
     assets,
+    categories: demoCategories,
   }
 }
 

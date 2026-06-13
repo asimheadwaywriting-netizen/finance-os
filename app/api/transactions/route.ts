@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Transaction } from '@/lib/types'
+import { forwardToN8n } from '@/lib/n8n-proxy'
 
 // Proxy to n8n Workflow 2 (transaction-logger). The webhook URL lives in env
 // vars only (Vercel dashboard / .env.local) — never in client-side code.
@@ -73,4 +74,41 @@ export async function POST(request: Request) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+// Remove a transaction. Routes to Workflow 8 (record-remover), which finds the
+// first row in the Transactions tab matching every identifying field and deletes
+// it. The full transaction object is sent as the match so duplicates can't be
+// ambiguous beyond identical rows (where deleting either is equivalent).
+export async function DELETE(request: Request) {
+  const url = process.env.N8N_DELETE_WEBHOOK_URL
+  if (!url) {
+    return NextResponse.json(
+      { error: 'N8N_DELETE_WEBHOOK_URL is not configured' },
+      { status: 503 }
+    )
+  }
+
+  let body: Partial<Transaction>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const missing = REQUIRED_FIELDS.filter(
+    (field) => body[field] === undefined || body[field] === ''
+  )
+  if (missing.length > 0) {
+    return NextResponse.json(
+      { error: `Missing required fields: ${missing.join(', ')}` },
+      { status: 400 }
+    )
+  }
+
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    return NextResponse.json({ success: true })
+  }
+
+  return forwardToN8n(url, { tab: 'Transactions', match: body })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -9,7 +9,9 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { DashboardData } from '@/lib/types'
 
@@ -18,12 +20,31 @@ type Asset = DashboardData['assets'][number]
 export interface AssetMaturityTrackerProps {
   assets?: Asset[]
   title?: string
+  /** When provided, a remove button appears on each row (confirm dialog first). */
+  onRemove?: (assetName: string) => Promise<unknown>
 }
 
 export default function AssetMaturityTracker({
   assets = [],
-  title = 'Assets & Maturities'
+  title = 'Assets & Maturities',
+  onRemove
 }: AssetMaturityTrackerProps) {
+  const [pendingDelete, setPendingDelete] = useState<Asset | null>(null)
+  const [removing, setRemoving] = useState(false)
+
+  const confirmRemove = async () => {
+    if (!pendingDelete || !onRemove) return
+    setRemoving(true)
+    try {
+      await onRemove(pendingDelete.name)
+      setPendingDelete(null)
+    } catch {
+      // error surfaced by the caller's hook; keep the dialog open
+    } finally {
+      setRemoving(false)
+    }
+  }
+
   // Soonest maturity first; assets with no maturity date (e.g. open DPS) last.
   const sorted = [...assets].sort((a, b) => {
     if (a.daysToMaturity === null) return 1
@@ -51,12 +72,13 @@ export default function AssetMaturityTracker({
               <TableHead className="text-gray-400 font-medium text-xs text-right">Rate</TableHead>
               <TableHead className="text-gray-400 font-medium text-xs">Matures</TableHead>
               <TableHead className="text-gray-400 font-medium text-xs text-right">Days left</TableHead>
+              {onRemove && <TableHead className="text-gray-400 font-medium text-xs text-right w-10"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-xs text-gray-500">
+                <TableCell colSpan={onRemove ? 8 : 7} className="h-24 text-center text-xs text-gray-500">
                   No assets recorded.
                 </TableCell>
               </TableRow>
@@ -105,6 +127,19 @@ export default function AssetMaturityTracker({
                         </span>
                       )}
                     </TableCell>
+                    {onRemove && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label="Remove asset"
+                          className="text-gray-500 hover:text-brand-expense"
+                          onClick={() => setPendingDelete(asset)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })
@@ -112,6 +147,19 @@ export default function AssetMaturityTracker({
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Remove asset?"
+        description={
+          pendingDelete
+            ? `${pendingDelete.name} (${formatCurrency(pendingDelete.value)}) at ${pendingDelete.institution || 'unknown'}. This deletes the row from your sheet.`
+            : ''
+        }
+        loading={removing}
+        onConfirm={confirmRemove}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }
