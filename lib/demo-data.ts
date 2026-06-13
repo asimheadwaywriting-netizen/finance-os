@@ -32,6 +32,27 @@ function daysLeftInMonth(): number {
   return lastDay - now.getDate()
 }
 
+// Per-day income/expense for the current month (up to today), aggregated from the
+// sample's recent transactions — so the demo's daily chart has believable shape.
+function buildDailyTrend(): DashboardData['dailyTrend'] {
+  const now = new Date()
+  const ym = now.toISOString().slice(0, 7)
+  const byDay: Record<string, { income: number; expenses: number }> = {}
+  for (const t of base.recentTransactions || []) {
+    if (!t.date || !t.date.startsWith(ym)) continue
+    const dd = t.date.slice(8, 10)
+    if (!byDay[dd]) byDay[dd] = { income: 0, expenses: 0 }
+    byDay[dd][t.type === 'Income' ? 'income' : 'expenses'] += t.amount
+  }
+  const out: DashboardData['dailyTrend'] = []
+  for (let i = 1; i <= now.getDate(); i++) {
+    const k = String(i).padStart(2, '0')
+    const e = byDay[k] || { income: 0, expenses: 0 }
+    out.push({ day: String(i), income: e.income, expenses: e.expenses })
+  }
+  return out
+}
+
 /**
  * The sample dashboard, with time-sensitive fields recomputed against today so the
  * demo never looks stale: `daysLeftInMonth` is live, asset `daysToMaturity` is
@@ -57,6 +78,7 @@ export function getDemoDashboard(): DashboardData {
     metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth() },
     assets,
     categories: demoCategories,
+    dailyTrend: buildDailyTrend(),
   }
 }
 

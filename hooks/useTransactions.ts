@@ -10,6 +10,7 @@ const EMPTY_DASHBOARD: DashboardData = {
   recentTransactions: [],
   spendingByCategory: [],
   monthlyTrend: [],
+  dailyTrend: [],
   categories: [],
 }
 

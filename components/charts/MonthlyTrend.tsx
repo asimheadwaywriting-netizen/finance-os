@@ -14,10 +14,12 @@ import {
 import { formatCurrency } from '@/lib/utils'
 
 export interface MonthlyTrendProps {
-  data?: { month: string; income: number; expenses: number }[]
+  data?: { income: number; expenses: number; [key: string]: string | number }[]
+  /** Which field to use for the X axis ('month' or 'day'). */
+  xKey?: string
 }
 
-export default function MonthlyTrend({ data = [] }: MonthlyTrendProps) {
+export default function MonthlyTrend({ data = [], xKey = 'month' }: MonthlyTrendProps) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <LineChart
@@ -26,7 +28,7 @@ export default function MonthlyTrend({ data = [] }: MonthlyTrendProps) {
       >
         <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
         <XAxis
-          dataKey="month"
+          dataKey={xKey}
           tick={{ fill: '#6b7280', fontSize: 11, fontFamily: 'monospace' }}
           stroke="rgba(255,255,255,0.1)"
         />

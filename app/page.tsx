@@ -85,7 +85,7 @@ export default function Home() {
             <Card className="lg:col-span-2 bg-card border-white/10 overflow-hidden">
               <CardContent className="p-6 h-[320px] flex flex-col justify-between">
                 <div>
-                  <h4 className="font-sans font-medium text-sm text-white mb-2">Monthly Cash Flow Trend</h4>
+                  <h4 className="font-sans font-medium text-sm text-white mb-2">Daily Cash Flow Trend</h4>
                   <Skeleton className="h-4 w-32 bg-white/5" />
                 </div>
                 <div className="space-y-4">
@@ -179,14 +179,14 @@ export default function Home() {
             <CardContent className="p-6 h-[320px] flex flex-col justify-between">
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-sans font-medium text-sm text-white">Monthly Cash Flow Trend</h4>
+                  <h4 className="font-sans font-medium text-sm text-white">Daily Cash Flow Trend</h4>
                   <span className="text-[10px] text-gray-500 font-mono">Live</span>
                 </div>
-                <p className="text-xs text-gray-500">Income vs expenses trend over time</p>
+                <p className="text-xs text-gray-500">Income vs expenses, day by day this month</p>
               </div>
 
               <div className="flex-1 min-h-[220px]">
-                <MonthlyTrend data={data.monthlyTrend} />
+                <MonthlyTrend data={data.dailyTrend} xKey="day" />
               </div>
             </CardContent>
           </Card>
