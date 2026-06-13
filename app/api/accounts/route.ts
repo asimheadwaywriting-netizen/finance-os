@@ -36,6 +36,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  const values = [String(body.account_name).trim(), Number(body.starting_balance) || 0]
+  // as_of_date (internal): the balance is current as of today, so only expenses
+  // logged after today reduce it. The user never sees or types this.
+  const today = new Date().toISOString().slice(0, 10)
+  const values = [String(body.account_name).trim(), Number(body.starting_balance) || 0, today]
   return forwardToN8n(url, { tab: 'Accounts', values })
 }

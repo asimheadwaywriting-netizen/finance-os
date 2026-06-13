@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-13T09:27:25.073Z",
+  "updatedAt": "2026-06-13T17:13:22.941Z",
   "createdAt": "2026-06-13T07:31:28.100Z",
   "id": "uwl7mHJ8oBzvraqb",
   "name": "record-creator",
@@ -50,7 +50,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 2 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
+        "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 3 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
       }
     },
     {
@@ -208,9 +208,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "6b911c48-a9d7-4069-b1e8-837a25e0963b",
-  "activeVersionId": "6b911c48-a9d7-4069-b1e8-837a25e0963b",
-  "versionCounter": 6,
+  "versionId": "3d49e2c1-47eb-4242-8cd1-06c0d99cba45",
+  "activeVersionId": "3d49e2c1-47eb-4242-8cd1-06c0d99cba45",
+  "versionCounter": 9,
   "triggerCount": 1,
   "shared": [
     {
@@ -233,9 +233,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-13T09:27:25.074Z",
-    "createdAt": "2026-06-13T09:27:25.074Z",
-    "versionId": "6b911c48-a9d7-4069-b1e8-837a25e0963b",
+    "updatedAt": "2026-06-13T17:13:22.941Z",
+    "createdAt": "2026-06-13T17:13:22.941Z",
+    "versionId": "3d49e2c1-47eb-4242-8cd1-06c0d99cba45",
     "workflowId": "uwl7mHJ8oBzvraqb",
     "nodes": [
       {
@@ -281,7 +281,7 @@
           0
         ],
         "parameters": {
-          "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 2 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
+          "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 3 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
         }
       },
       {
@@ -435,18 +435,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-13T09:27:25.109Z",
-        "id": 530,
+        "createdAt": "2026-06-13T17:13:22.978Z",
+        "id": 536,
         "workflowId": "uwl7mHJ8oBzvraqb",
-        "versionId": "6b911c48-a9d7-4069-b1e8-837a25e0963b",
+        "versionId": "3d49e2c1-47eb-4242-8cd1-06c0d99cba45",
         "event": "activated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       },
       {
-        "createdAt": "2026-06-13T09:27:25.097Z",
-        "id": 529,
+        "createdAt": "2026-06-13T17:13:22.966Z",
+        "id": 535,
         "workflowId": "uwl7mHJ8oBzvraqb",
-        "versionId": "6b911c48-a9d7-4069-b1e8-837a25e0963b",
+        "versionId": "3d49e2c1-47eb-4242-8cd1-06c0d99cba45",
         "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }
