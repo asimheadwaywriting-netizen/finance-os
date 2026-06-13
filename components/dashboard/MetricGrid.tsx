@@ -2,7 +2,7 @@
 
 import React from 'react'
 import MetricCard from './MetricCard'
-import { TrendingUp, TrendingDown, Landmark, Sparkles } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Sparkles } from 'lucide-react'
 import type { DashboardData } from '@/lib/types'
 
 export interface MetricGridProps {
@@ -21,10 +21,10 @@ export default function MetricGrid({
   if (loading || !data || !accounts || !trend) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <MetricCard title="Monthly Income" value={0} loading={true} />
-        <MetricCard title="Monthly Expenses" value={0} loading={true} />
-        <MetricCard title="Net Savings" value={0} loading={true} />
-        <MetricCard title="Total Balances" value={0} loading={true} />
+        <MetricCard title="Cash in Hand" value={0} loading={true} />
+        <MetricCard title="Total Expense So Far" value={0} loading={true} />
+        <MetricCard title="Total Income So Far" value={0} loading={true} />
+        <MetricCard title="Net Saving" value={0} loading={true} />
       </div>
     )
   }
@@ -78,37 +78,34 @@ export default function MetricGrid({
     }
   }
 
-  // Calculate total account balances
-  const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-      <MetricCard 
-        title="Monthly Income" 
-        value={data.income} 
-        type="income"
-        delta={incomeDelta}
-        icon={<TrendingUp className="w-4 h-4 text-brand-income" />}
+      <MetricCard
+        title="Cash in Hand"
+        value={data.income}
+        type="neutral"
+        icon={<Wallet className="w-4 h-4 text-gray-400" />}
       />
-      <MetricCard 
-        title="Monthly Expenses" 
-        value={data.expenses} 
+      <MetricCard
+        title="Total Expense So Far"
+        value={data.expenses}
         type="expense"
         delta={expenseDelta}
         icon={<TrendingDown className="w-4 h-4 text-brand-expense" />}
       />
-      <MetricCard 
-        title="Net Savings" 
-        value={data.net} 
+      <MetricCard
+        title="Total Income So Far"
+        value={data.income}
+        type="income"
+        delta={incomeDelta}
+        icon={<TrendingUp className="w-4 h-4 text-brand-income" />}
+      />
+      <MetricCard
+        title="Net Saving"
+        value={data.net}
         type={data.net >= 0 ? "income" : "expense"}
         delta={netDelta}
         icon={<Sparkles className="w-4 h-4 text-amber-500" />}
-      />
-      <MetricCard 
-        title="Total Balances" 
-        value={totalBalance} 
-        type="neutral"
-        icon={<Landmark className="w-4 h-4 text-gray-400" />}
       />
     </div>
   )
