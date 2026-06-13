@@ -80,12 +80,31 @@ export function getDemoDashboard(): DashboardData {
   const goalContrib = base.goals.reduce((s, g) => s + (g.contribution || 0), 0)
   const safeToSpend = Math.max(0, totalBalance - goalContrib)
 
+  // A couple of sample budgets, with spent pulled from the demo's category spending.
+  const spentFor = (cat: string) =>
+    (base.spendingByCategory.find((c) => c.category === cat)?.amount) ?? 0
+  const demoBudgets: DashboardData['budgets'] = [
+    { category: 'Groceries', limit: 8000 },
+    { category: 'Food & Dining', limit: 4000 },
+    { category: 'Transportation', limit: 3000 },
+  ].map((b) => {
+    const spent = spentFor(b.category)
+    return {
+      category: b.category,
+      limit: b.limit,
+      spent,
+      remaining: b.limit - spent,
+      pct: b.limit > 0 ? Math.round((spent / b.limit) * 100) : 0,
+    }
+  })
+
   return {
     ...base,
     metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal, safeToSpend },
     assets,
     categories: demoCategories,
     dailyTrend: buildDailyTrend(),
+    budgets: demoBudgets,
   }
 }
 

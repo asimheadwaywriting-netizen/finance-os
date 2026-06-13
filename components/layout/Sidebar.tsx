@@ -1,11 +1,12 @@
 'use client'
 
 import React from 'react'
-import { 
-  LayoutDashboard, 
-  ReceiptText, 
-  Target, 
-  Briefcase, 
+import {
+  LayoutDashboard,
+  ReceiptText,
+  Target,
+  Briefcase,
+  Gauge,
   MessageSquare,
   User,
   Settings
@@ -30,6 +31,7 @@ export default function Sidebar({
     { id: 'transactions', label: 'Transactions', icon: ReceiptText },
     { id: 'goals', label: 'Goals', icon: Target },
     { id: 'assets', label: 'Assets', icon: Briefcase },
+    { id: 'budget', label: 'Budget', icon: Gauge },
   ]
 
   return (

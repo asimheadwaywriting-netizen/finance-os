@@ -11,6 +11,7 @@ import { useGoals } from '@/hooks/useGoals'
 import { useAssets } from '@/hooks/useAssets'
 import { useCategories } from '@/hooks/useCategories'
 import { useAccounts } from '@/hooks/useAccounts'
+import { useBudgets } from '@/hooks/useBudgets'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -23,6 +24,8 @@ import GoalForm from '@/components/goals/GoalForm'
 import AssetForm from '@/components/assets/AssetForm'
 import CategoryForm from '@/components/categories/CategoryForm'
 import AccountForm from '@/components/accounts/AccountForm'
+import BudgetForm from '@/components/budgets/BudgetForm'
+import { BUDGET_WARNING_THRESHOLD } from '@/lib/constants'
 import { Skeleton } from '@/components/ui/skeleton'
 import ChatPanel from '@/components/chat/ChatPanel'
 import AccountBalances from '@/components/accounts/AccountBalances'
@@ -41,6 +44,7 @@ export default function Home() {
   const { addAsset, removeAsset, isSubmitting: isAssetSubmitting } = useAssets()
   const { addCategory, isSubmitting: isCategorySubmitting } = useCategories()
   const { addAccount, isSubmitting: isAccountSubmitting } = useAccounts()
+  const { addBudget, removeBudget, isSubmitting: isBudgetSubmitting } = useBudgets()
 
   // Add-form toggles + pending goal deletion (asset/transaction deletes are local
   // to their list components).
@@ -48,8 +52,11 @@ export default function Home() {
   const [showAssetForm, setShowAssetForm] = useState(false)
   const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [showAccountForm, setShowAccountForm] = useState(false)
+  const [showBudgetForm, setShowBudgetForm] = useState(false)
   const [pendingGoalDelete, setPendingGoalDelete] = useState<string | null>(null)
   const [removingGoal, setRemovingGoal] = useState(false)
+  const [pendingBudgetDelete, setPendingBudgetDelete] = useState<string | null>(null)
+  const [removingBudget, setRemovingBudget] = useState(false)
 
   // Category → color map from live data, merged over the static palette fallback.
   const categoryColors = useMemo(() => {
@@ -68,6 +75,19 @@ export default function Home() {
       // error surfaced by the hook; keep the dialog open
     } finally {
       setRemovingGoal(false)
+    }
+  }
+
+  const confirmBudgetDelete = async () => {
+    if (!pendingBudgetDelete) return
+    setRemovingBudget(true)
+    try {
+      await removeBudget(pendingBudgetDelete)
+      setPendingBudgetDelete(null)
+    } catch {
+      // error surfaced by the hook; keep the dialog open
+    } finally {
+      setRemovingBudget(false)
     }
   }
 
@@ -539,9 +559,133 @@ export default function Home() {
     )
   }
 
+  const renderBudgetView = () => {
+    if (error && !data) {
+      return <ErrorBanner message={error.message} onRetry={mutate} />
+    }
+
+    if (isLoading || !data) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="bg-card border-white/10 overflow-hidden">
+              <CardContent className="p-6 space-y-4">
+                <Skeleton className="h-5 w-28 bg-white/5" />
+                <Skeleton className="h-2 w-full bg-white/5" />
+                <Skeleton className="h-4 w-32 bg-white/5" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )
+    }
+
+    const budgetedCats = new Set(data.budgets.map((b) => b.category))
+    const availableCats = data.categories
+      .filter((c) => c.type === 'Expense' && !budgetedCats.has(c.name))
+      .map((c) => c.name)
+
+    return (
+      <div className="space-y-6">
+        {error && <ErrorBanner message={error.message} onRetry={mutate} />}
+
+        <div className="flex justify-end">
+          {!showBudgetForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 text-gray-300"
+              onClick={() => setShowBudgetForm(true)}
+            >
+              <Plus /> Add Budget
+            </Button>
+          )}
+        </div>
+
+        {showBudgetForm && (
+          <BudgetForm
+            onSubmit={async (b) => { await addBudget(b) }}
+            onCancel={() => setShowBudgetForm(false)}
+            isSubmitting={isBudgetSubmitting}
+            categories={availableCats}
+          />
+        )}
+
+        {data.budgets.length === 0 ? (
+          <Card className="bg-card border-white/10">
+            <CardContent className="p-8 text-center text-xs text-gray-500">
+              No budgets set yet. Add a monthly limit for a category to track your spending against it.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {data.budgets.map((b, idx) => {
+              const color = categoryColors[b.category] || '#6b7280'
+              const isOver = b.spent > b.limit
+              const isWarn = !isOver && b.limit > 0 && b.spent / b.limit >= BUDGET_WARNING_THRESHOLD
+              const barColor = isOver ? '#f97316' : isWarn ? '#f59e0b' : '#3b82f6'
+              const pct = Math.max(0, b.pct)
+              return (
+                <Card key={idx} className="bg-card border-white/10 overflow-hidden">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className="border font-normal text-[11px] py-0.5 px-2 rounded-md"
+                        style={{ backgroundColor: `${color}15`, color, borderColor: `${color}30` }}
+                      >
+                        {b.category}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-gray-500">{pct}%</span>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label="Remove budget"
+                          className="text-gray-500 hover:text-brand-expense"
+                          onClick={() => setPendingBudgetDelete(b.category)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-gray-100">{formatCurrency(b.spent)}</span>
+                        <span className="text-gray-500">of {formatCurrency(b.limit)}</span>
+                      </div>
+                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${Math.min(100, pct)}%`, backgroundColor: barColor }}
+                        />
+                      </div>
+                      <div className={cn('text-right text-[10px] font-mono', isOver ? 'text-brand-expense' : 'text-gray-500')}>
+                        {isOver ? `Over by ${formatCurrency(b.spent - b.limit)}` : `${formatCurrency(b.remaining)} left`}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        <ConfirmDialog
+          open={pendingBudgetDelete !== null}
+          title="Remove budget?"
+          description={pendingBudgetDelete ? `The budget for "${pendingBudgetDelete}" will be removed.` : ''}
+          loading={removingBudget}
+          onConfirm={confirmBudgetDelete}
+          onCancel={() => setPendingBudgetDelete(null)}
+        />
+      </div>
+    )
+  }
+
   return (
     <>
-      <AppShell 
+      <AppShell
         activeView={activeView} 
         onViewChange={setActiveView}
         onOpenChat={() => setIsChatOpen(true)}
@@ -568,6 +712,8 @@ export default function Home() {
           {activeView === 'goals' && renderGoalsView()}
 
           {activeView === 'assets' && renderAssetsView()}
+
+          {activeView === 'budget' && renderBudgetView()}
         </div>
       </AppShell>
 

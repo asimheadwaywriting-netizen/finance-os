@@ -12,6 +12,7 @@ const EMPTY_DASHBOARD: DashboardData = {
   monthlyTrend: [],
   dailyTrend: [],
   categories: [],
+  budgets: [],
 }
 
 const isDemo = () => process.env.NEXT_PUBLIC_DEMO_MODE === 'true'

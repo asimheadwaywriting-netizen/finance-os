@@ -34,6 +34,7 @@ export interface DashboardData {
   monthlyTrend: { month: string; income: number; expenses: number }[]
   dailyTrend: { day: string; income: number; expenses: number }[]
   categories: { name: string; type: 'Income' | 'Expense'; color: string }[]
+  budgets: { category: string; limit: number; spent: number; remaining: number; pct: number }[]
 }
 
 export interface Transaction {
