@@ -1,7 +1,9 @@
 # Finance OS — Claude Code Constitution
 
 ## What This Project Is
-A personal finance dashboard for Asim. Data lives in Google Sheets. n8n (self-hosted VPS) is the middleware. Next.js frontend on Vercel. AI chatbot via OpenAI API (existing subscription — DeepSeek was dropped 2026-06-12, no subscription). Gmail alerts on schedule.
+A personal finance dashboard for Asim. Data lives in Postgres (Neon, free tier). n8n (self-hosted VPS) is the middleware. Next.js frontend on Vercel. AI chatbot via OpenAI API (existing subscription — DeepSeek was dropped 2026-06-12, no subscription). Gmail alerts on schedule.
+
+Migrated from Google Sheets to Postgres 2026-06-20 (see Milestone 12 in progress.md). The Sheet is kept as an inert backup, not read from anymore.
 
 ## Ownership — Claude Code vs Antigravity
 
@@ -11,8 +13,8 @@ A personal finance dashboard for Asim. Data lives in Google Sheets. n8n (self-ho
 - `lib/utils.ts` — formatCurrency, formatDate, cn() helpers
 - `lib/constants.ts` — category colors, budget thresholds, webhook URLs
 - `n8n/` — workflow JSON exports (documentation only, built in n8n UI)
-- All 7 n8n workflows (built and tested in n8n)
-- Google Sheets schema (4 tabs, exact column names)
+- All 9 n8n workflows (built and tested in n8n)
+- Postgres schema (`n8n/migrate-to-postgres.js` and `n8n/swap-workflow*-postgres.js` document the exact tables/columns)
 - Error handling in API routes
 
 **Antigravity owns (Claude Code does not modify these):**
@@ -23,7 +25,7 @@ A personal finance dashboard for Asim. Data lives in Google Sheets. n8n (self-ho
 
 ## Architecture
 ```
-Browser → Next.js /api/* routes → n8n Webhooks on VPS → Google Sheets
+Browser → Next.js /api/* routes → n8n Webhooks on VPS → Postgres (Neon)
                                                        → OpenAI API
                                                        → Gmail
 ```
@@ -34,7 +36,7 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 - shadcn/ui (component primitives), Recharts (charts)
 - Vercel (deploy), n8n self-hosted VPS
 - OpenAI API (`gpt-4o-mini` default — bump to `gpt-4o` if answers feel weak; existing n8n credential `OpenAi account`, ID `9L3j2utOyiBJWa9S`)
-- Google Sheets API (via n8n OAuth2 credential)
+- Postgres via Neon (free tier), n8n credential `Postgres account` ID `NVJk0SsDUL8En4zV`
 
 ## n8n Workflows (9 total)
 | # | Name | Trigger | Purpose |
@@ -51,36 +53,39 @@ n8n webhook URLs are never in client-side code. They live in Vercel env vars onl
 
 **Rule:** OpenAI never computes numbers. All math lives in the Workflow 1 Code node. OpenAI only interprets pre-computed JSON output.
 
-## Live Infrastructure (Milestone 2)
-- **Google Sheet:** `Finance OS` — spreadsheet ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` (4 tabs seeded with Jan–Jun 2026 sample data)
-- **Workflow 1:** `finance-data-aggregator` — n8n workflow ID `8GejOtDtsht0CfEJ`, active
-- **Workflow 2:** `transaction-logger` — n8n workflow ID `WwmlYYISq5buXPYx`, active (validate incl. payee → append; 400 + error list on invalid, nothing written)
-- **Workflow 3:** `ai-chat-handler` — n8n workflow ID `5RkSgctHtRNq3mIR`, active (fetch Workflow 1 JSON → gpt-4o-mini → parse intent → `{ reply, action, transaction }`; M7: log_transaction → Workflow 2 → Gmail confirmation after the webhook response)
-- **Workflow 4:** `weekly-safe-to-spend-alert` — ID `9Ximk7fsIvpL5gYx`, active (Mon 8am Asia/Dhaka, always sends)
-- **Workflow 5:** `budget-warning-alert` — ID `IJJC0nVE6XyQQBAo`, active (daily 12pm; sends if month expenses ≥80% of income — no per-category budgets exist in the Sheet, so the threshold applies to the total)
-- **Workflow 6:** `asset-maturity-reminder` — ID `kb8JQk0TwWg7uRWg`, active (daily 9am; sends if any asset matures within 7 days)
-- **Workflow 7:** `end-of-month-summary` — ID `LuDfz4YRFqRTjz8M`, active (cron 6pm days 28–31; Code node sends only on the actual last day; full P&L)
-- **Workflow 8:** `record-remover` — ID `XBpyHnVzjOHulNje`, active (POST `{ tab, match }` → reads tab, finds first row matching every `match` field, deletes via Sheets `batchUpdate deleteDimension`; 400 if no match — nothing deleted)
-- **Workflow 9:** `record-creator` — ID `uwl7mHJ8oBzvraqb`, active (POST `{ tab, values }` → validates tab + value count → appends to Goals/Assets/Categories; 400 + error list on invalid)
+## Live Infrastructure
+- **Postgres:** Neon project `neondb`, n8n credential `Postgres account` ID `NVJk0SsDUL8En4zV` (free tier — see Milestone 12)
+- **Old Google Sheet:** `Finance OS` — spreadsheet ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` — kept as an inert backup, no longer read from
+- **Workflow 1:** `finance-data-aggregator` — n8n workflow ID `8GejOtDtsht0CfEJ`, active (one Postgres query, `json_agg` per table, dates formatted via `to_char` to avoid timezone-shift bugs)
+- **Workflow 2:** `transaction-logger` — n8n workflow ID `WwmlYYISq5buXPYx`, active (validate incl. payee → INSERT; 400 + error list on invalid, nothing written)
+- **Workflow 3:** `ai-chat-handler` — n8n workflow ID `5RkSgctHtRNq3mIR`, active (fetch Workflow 1 JSON → gpt-4o-mini → parse intent → `{ reply, action, transaction }`; M7: log_transaction → Workflow 2 → Gmail confirmation after the webhook response) — unchanged by the Postgres migration, it only ever called Workflows 1/2
+- **Workflow 4:** `weekly-safe-to-spend-alert` — ID `9Ximk7fsIvpL5gYx`, active (Mon 8am Asia/Dhaka, always sends) — unchanged, calls Workflow 1
+- **Workflow 5:** `budget-warning-alert` — ID `IJJC0nVE6XyQQBAo`, active (daily 12pm; sends if month expenses ≥80% of income) — unchanged, calls Workflow 1
+- **Workflow 6:** `asset-maturity-reminder` — ID `kb8JQk0TwWg7uRWg`, active (daily 9am; sends if any asset matures within 7 days) — unchanged, calls Workflow 1
+- **Workflow 7:** `end-of-month-summary` — ID `LuDfz4YRFqRTjz8M`, active (cron 6pm days 28–31; Code node sends only on the actual last day; full P&L) — unchanged, calls Workflow 1
+- **Workflow 8:** `record-remover` — ID `XBpyHnVzjOHulNje`, active (POST `{ tab, match }` → `DELETE ... WHERE id = (SELECT id WHERE <match fields> ORDER BY id LIMIT 1)`; 400 if no match — nothing deleted)
+- **Workflow 9:** `record-creator` — ID `uwl7mHJ8oBzvraqb`, active (POST `{ tab, values }` → validates tab + value count → INSERT into the matching table, `ON CONFLICT DO NOTHING` where a unique constraint exists; 400 + error list on invalid or duplicate)
 - **Webhook:** `GET https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` → returns `DashboardData`
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-transaction` → `{ success, transaction }` or 400 `{ success: false, error }`
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-chat` → `{ reply, action, transaction }`
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-create` → `{ success: true }` or 400 (record-creator)
 - **Webhook:** `POST https://asim.sg-node8n.serverdoor.com/webhook/finance-delete` → `{ success: true }` or 400 (record-remover)
-- Workflow export: `n8n/finance-data-aggregator.json` · sample response: `n8n/sample-dashboard-response.json` · deploy script: `n8n/deploy-milestone2.js`
-- Implementation note: reads use ONE Sheets `values:batchGet` call for all 4 tabs (quota-friendlier than 4 separate reads); dates seeded with `valueInputOption: RAW` so they stay strings, and the Code node converts serial numbers defensively anyway
-- `safeToSpend` formula: current month `net` minus total `monthly_contribution` across all goals
+- Migration scripts: `n8n/migrate-to-postgres.js` (one-time data copy) · `n8n/swap-workflow1-postgres.js`, `swap-workflow2-postgres.js`, `swap-workflow8-postgres.js`, `swap-workflow9-postgres.js` (the live workflow swaps, each self-testing)
+- `safeToSpend` formula: current month `net` minus total `monthly_contribution` across all goals (unchanged)
 
-## Google Sheets Structure (5 tabs)
-- **Transactions** — `date, type, category, payee, amount, account, note`
-- **Accounts** — `account_name, starting_balance`
-- **Goals** — `goal_name, target_amount, saved_so_far, monthly_contribution, priority`
-- **Assets** — `asset_name, type, value, institution, start_date, maturity_date, interest_rate, notes`
-- **Categories** — `name, type, color` (M11; seeded from `lib/constants.ts`, drives the log-transaction dropdown)
+## Postgres Schema (6 tables, Neon)
+- **transactions** — `id, date, type, category, payee, amount, account, note` (`category` references `categories(name)`, `account` references `accounts(account_name)`)
+- **accounts** — `id, account_name (unique), starting_balance, as_of_date` — balances are computed as `starting_balance` + the sum of transactions dated after `as_of_date`
+- **goals** — `id, goal_name, target_amount, saved_so_far, monthly_contribution, priority`
+- **assets** — `id, asset_name, type, value, institution, start_date, maturity_date, interest_rate, notes`
+- **categories** — `id, name (unique), type, color` — seeded from `lib/constants.ts`, drives the log-transaction dropdown
+- **budgets** — `id, category (unique), monthly_limit`
+
+Migrated from the old 5-tab Google Sheet 2026-06-20. `categories`, `accounts`, and `budgets` have a `UNIQUE` constraint on their natural key (the Sheet never enforced this) — Workflow 9 uses `ON CONFLICT DO NOTHING` + a row-count check to turn a duplicate insert into a clean 400 instead of a crash.
 
 ## Category Taxonomy
 
-Since M11 the live category list is **Sheet-driven**: the `Categories` tab is the source of truth, the aggregator returns it as `DashboardData.categories`, and `TransactionForm.tsx` builds its dropdown from that (filtered by `type`). `lib/constants.ts` (`CATEGORY_LIST` + `CATEGORY_COLORS`) is now the **seed + fallback** — used to seed the tab and as the default when live categories are absent (demo / first load). New categories are added in-app via `CategoryForm` → `/api/categories` → Workflow 9.
+The live category list is **Postgres-driven**: the `categories` table is the source of truth, the aggregator returns it as `DashboardData.categories`, and `TransactionForm.tsx` builds its dropdown from that (filtered by `type`). `lib/constants.ts` (`CATEGORY_LIST` + `CATEGORY_COLORS`) is now the **seed + fallback** — used to seed the table and as the default when live categories are absent (demo / first load). New categories are added in-app via `CategoryForm` → `/api/categories` → Workflow 9.
 
 **Expense categories:**
 | Category | Color |
@@ -177,7 +182,6 @@ export interface ChatMessage {
 Each route: try/catch + 10s AbortController timeout + 503 on failure. The mutation routes (transactions DELETE, goals, assets, categories) share `lib/n8n-proxy.ts` (`forwardToN8n`) and short-circuit to `{ success: true }` in demo mode.
 
 ## Error Handling Rules
-- Google Sheets quota: retry once after 60s, return cached data via `$getWorkflowStaticData`
 - OpenAI timeout: return `{ reply: "AI temporarily unavailable" }` after 30s
 - n8n unreachable: API routes return 503; frontend shows ErrorBanner with stale data
 - Any n8n workflow crash: Error Trigger node → Gmail alert to asim.headwaywriting@gmail.com

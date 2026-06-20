@@ -2,18 +2,19 @@
 
 Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this is the running log of what's actually live.
 
-## Current State (2026-06-13)
+## Current State (2026-06-20)
 
-**Progress: 100% — LAUNCHED · Latest tag: `v1.1-crud`**
+**Progress: 100% — LAUNCHED, now on Postgres · Latest milestone: M12 (Postgres migration)**
 
 | What | Status |
 |------|--------|
-| Live dashboard | https://finance-os-eight-delta.vercel.app/ (dark shell, stub data) |
-| Google Sheet | `Finance OS` — ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI`, 4 tabs, ~70 sample transactions Jan–Jun 2026 |
-| n8n Workflow 1 | `finance-data-aggregator` (ID `8GejOtDtsht0CfEJ`) — ACTIVE |
+| Live dashboard | https://finance-os-eight-delta.vercel.app/ |
+| Data store | Postgres (Neon free tier) — 5 accounts, 18 categories, 1 goal, 0 assets, 58 transactions, 0 budgets |
+| Old Google Sheet | `Finance OS` — ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` — kept as inert backup, not read from |
+| n8n Workflow 1 | `finance-data-aggregator` (ID `8GejOtDtsht0CfEJ`) — ACTIVE, Postgres-backed |
 | Live webhook | `GET https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` → `DashboardData` JSON |
 | AI provider | OpenAI (`gpt-4o-mini`), n8n credential `OpenAi account` ID `9L3j2utOyiBJWa9S` — DeepSeek dropped 2026-06-12 |
-| Sheets credential | `Google Sheets account` ID `eo7uMjjFUzvjTAGi` (reused) |
+| Postgres credential | `Postgres account` ID `NVJk0SsDUL8En4zV` |
 
 ## Milestone Log
 
@@ -85,6 +86,21 @@ Asim's 5-feature batch turning the append-only app into an editable one:
 - **Frontend:** new routes `DELETE /api/transactions`, `/api/goals`, `/api/assets`, `/api/categories` (share `lib/n8n-proxy.ts`); hooks `useTransactions.removeTransaction`, `useGoals`, `useAssets`, `useCategories`; all demo-mode safe.
 - **New env vars:** `N8N_CREATE_WEBHOOK_URL`, `N8N_DELETE_WEBHOOK_URL` — in `.env.local`; **must also be added to Vercel Production** or the add/remove buttons 503.
 - Deployed via `n8n/deploy-milestone11.js`; verified end-to-end (17/17 checks: add/remove for all 4 record types, invalid-input 400s, delete-missing 400, chat-log reply has no email mention). Test rows cleaned up.
+
+## Milestone 12 — DONE (2026-06-20) — Postgres migration
+
+Moved off Google Sheets entirely. Data now lives in Postgres (Neon free tier), still accessed only through n8n — the Next.js frontend is unchanged since it only ever talked to n8n webhooks, never to the data store directly.
+
+- **Schema:** 6 tables (`accounts`, `categories`, `transactions`, `goals`, `assets`, `budgets`) mirroring the old 6 Sheet tabs column-for-column, plus real foreign keys (`transactions.category`/`account` reference `categories`/`accounts`) and `UNIQUE` constraints the Sheet never had.
+- **Data copy:** one-time migration workflow (`n8n/migrate-to-postgres.js`) read all tabs and inserted them in dependency order (accounts/categories before transactions). First attempt silently inserted 0 rows because `bKash`'s blank starting balance violated a `NOT NULL` constraint — caught by checking real `COUNT(*)` in Postgres rather than trusting the workflow's own success message, fixed by defaulting blank required numerics to 0, re-ran clean: 5 accounts, 18 categories, 1 goal, 0 assets, 58 transactions.
+- **Workflow swaps** (each tested against the live webhook before moving to the next):
+  - **Workflow 1** (`finance-data-aggregator`): the Sheets `batchGet` + header-mapping Code became one Postgres query using `json_agg`/`json_build_object` per table, with dates formatted via `to_char(..., 'YYYY-MM-DD')` — raw date/timestamp columns serialize with a timezone shift otherwise (a `DATE` of `2026-06-13` round-tripped as `2026-06-12T18:00:00.000Z`, which is the wrong calendar day if you just slice the string).
+  - **Workflow 2** (`transaction-logger`): Sheets append → `INSERT`, same validation Code node untouched.
+  - **Workflow 8** (`record-remover`): the old "fetch sheet metadata → read tab → scan rows → delete by row index" (3 nodes) collapsed into one `DELETE ... WHERE id = (SELECT id ... ORDER BY id LIMIT 1)` query wrapped in a CTE that always returns a count, so n8n never gets zero output items even when nothing matches.
+  - **Workflow 9** (`record-creator`): Sheets append → `INSERT`, with `ON CONFLICT DO NOTHING` + a count check on `categories`/`accounts`/`budgets` (which now have unique constraints the Sheet never enforced) — a duplicate-key attempt now returns a clean 400 instead of crashing the workflow.
+- **Workflows 3–7** needed no changes — they only ever called Workflow 1/2's webhooks, never touched Sheets directly.
+- **Discovered along the way:** the live Sheet actually had 6 tabs, not the 5 documented in CLAUDE.md (`Budgets` was added later, undocumented) and `Accounts` had an undocumented third column (`as_of_date`) that the balance-calculation logic depends on. Both were added to the Postgres schema and backfilled before any workflow was switched over, so nothing was silently dropped.
+- **Sheet status:** left fully intact as a backup, not wired into anything anymore.
 
 ## Demo Deployment — IN PROGRESS (2026-06-13)
 
