@@ -16,11 +16,10 @@ export async function GET() {
     return NextResponse.json(getDemoDashboard())
   }
 
-  // Fast path: direct from Postgres — GATED behind DASHBOARD_DIRECT_DB=true.
-  // Gated deliberately: Vercel's auto-added DATABASE_URL pointed at a DIFFERENT
-  // Neon database than the one n8n uses (the real data store). Only enable this
-  // once DATABASE_URL is confirmed to be the same DB n8n reads/writes.
-  if (process.env.DASHBOARD_DIRECT_DB === 'true' && process.env.DATABASE_URL) {
+  // Fast path: direct from Postgres. Verified 2026-06-26 that Vercel's DATABASE_URL
+  // is the SAME Neon database n8n uses (host ep-divine-breeze-ahxsr4x7), so this is
+  // safe. Falls back to the n8n webhook if DATABASE_URL is ever absent.
+  if (process.env.DATABASE_URL) {
     try {
       return NextResponse.json(await getDashboardData())
     } catch (err) {
