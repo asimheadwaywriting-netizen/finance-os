@@ -102,6 +102,18 @@ Moved off Google Sheets entirely. Data now lives in Postgres (Neon free tier), s
 - **Discovered along the way:** the live Sheet actually had 6 tabs, not the 5 documented in CLAUDE.md (`Budgets` was added later, undocumented) and `Accounts` had an undocumented third column (`as_of_date`) that the balance-calculation logic depends on. Both were added to the Postgres schema and backfilled before any workflow was switched over, so nothing was silently dropped.
 - **Sheet status:** left fully intact as a backup, not wired into anything anymore.
 
+## Bills feature — DONE (2026-06-26) — recurring bills tracker
+
+Added a full recurring-bills tracker inside the Budget tab (rent, utilities, subscriptions).
+
+- **New Postgres table `bills`** (name UNIQUE, amount, due_day 1–31, category, account) created via temp Postgres workflow in `n8n/deploy-bills.js` (idempotent).
+- **WF1 `finance-data-aggregator`**: query now `json_agg`s bills; Compute node returns `bills[]` (per bill: `paid`, `dueDate`, `daysToDue`) + `metrics.billsCommitted` / `billsUnpaid`. **`paid` is derived** — true when a current-month Expense transaction exists with `note = 'bill:'+name`.
+- **No new workflow type:** "Mark paid" logs the bill as a real transaction via WF2 (so it flows into expenses + budgets); "Unmark" deletes it via WF8. The mark-paid transaction is **dated to the bill's `dueDate`** (month-stable) so unmark matches/deletes it deterministically any day.
+- **WF9 record-creator** allows `Bills` (5 values); **WF8 record-remover** allows deleting `bills` by name. Same patch pattern as budgets.
+- **Frontend:** `lib/types.ts` (Bill + metrics), `hooks/useBills.ts` (add/remove/markPaid/unmarkPaid, composes `useTransactions`, demo-safe optimistic), `app/api/bills/route.ts` (proxy), `components/bills/BillForm.tsx` + `BillsList.tsx`, Bills section in `renderBudgetView`, sample bills in `lib/demo-data.ts`.
+- **Out of scope (deferred):** Safe-to-Spend formula still `cash − goals` (bills not yet subtracted); no bill email reminders (the scheduled email workflows were archived this same session).
+- **Verified:** clean `npm run build`; backend create→mark-paid(paid=true, unpaid→0)→delete via webhooks; full path via Next.js `/api/bills` on a prod server (create, invalid→400, delete). **Note: `N8N_CREATE_WEBHOOK_URL` + `N8N_DELETE_WEBHOOK_URL` are already in Vercel (shared with budgets), so no new env vars needed.**
+
 ## Demo Deployment — IN PROGRESS (2026-06-13)
 
 - New `lib/demo-data.ts` + `NEXT_PUBLIC_DEMO_MODE` flag gate `/api/dashboard`, `/api/transactions`, `/api/chat` and `useTransactions` to serve self-contained sample data, canned chat replies, and no-persist transactions — documented in CLAUDE.md.

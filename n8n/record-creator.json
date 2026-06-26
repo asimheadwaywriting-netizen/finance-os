@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-13T17:54:20.219Z",
+  "updatedAt": "2026-06-26T10:44:00.046Z",
   "createdAt": "2026-06-13T07:31:28.100Z",
   "id": "uwl7mHJ8oBzvraqb",
   "name": "record-creator",
@@ -17,7 +17,7 @@
         -260
       ],
       "parameters": {
-        "content": "## Record Creator (Workflow 9)\nPOST /finance-create { tab, values }. Validates the tab + value count, then appends the row to the Goals / Assets / Categories tab. 400 + error list on invalid input — nothing is written.\n\nTransactions still use Workflow 2 (transaction-logger).",
+        "content": "## Record Creator (Workflow 9)\nPOST /finance-create { tab, values }. Validates the tab + value count, then inserts the row into the matching Postgres table. 400 + error list on invalid input or duplicate key — nothing is written.\n\nTransactions still use Workflow 2 (transaction-logger).",
         "height": 240,
         "width": 540,
         "color": 4
@@ -50,7 +50,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 3, Budgets: 2 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
+        "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 3, Budgets: 2, Bills: 5 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
       }
     },
     {
@@ -87,29 +87,70 @@
       }
     },
     {
-      "id": "http1",
-      "name": "Append Row",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "codesql1",
+      "name": "Build Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         660,
-        -100
+        -120
       ],
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
-        "options": {},
-        "method": "POST",
-        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/' + encodeURIComponent($json.tab) + '!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS' }}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ values: [ $json.values ] }) }}"
+        "jsCode": "const TABLES = {\n  Goals: { table: 'goals', cols: ['goal_name','target_amount','saved_so_far','monthly_contribution','priority'], types: ['text','numNotNull','numNotNull','numNotNull','text'], conflict: null },\n  Assets: { table: 'assets', cols: ['asset_name','type','value','institution','start_date','maturity_date','interest_rate','notes'], types: ['text','text','numNotNull','text','date','date','num','text'], conflict: null },\n  Categories: { table: 'categories', cols: ['name','type','color'], types: ['text','text','text'], conflict: 'name' },\n  Accounts: { table: 'accounts', cols: ['account_name','starting_balance','as_of_date'], types: ['text','numNotNull','date'], conflict: 'account_name' },\n  Budgets: { table: 'budgets', cols: ['category','monthly_limit'], types: ['text','numNotNull'], conflict: 'category' },\n  Bills: { table: 'bills', cols: ['name','amount','due_day','category','account'], types: ['text','numNotNull','numNotNull','text','text'], conflict: 'name' },\n};\nconst tab = $json.tab;\nconst values = $json.values || [];\nconst def = TABLES[tab];\nconst escText = (v) => (v === undefined || v === null || v === '') ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst escNum = (v) => (v === undefined || v === null || v === '') ? 'NULL' : Number(v);\nconst escNumNotNull = (v) => (v === undefined || v === null || v === '') ? 0 : Number(v);\nconst escDate = (v) => (v === undefined || v === null || v === '') ? 'NULL' : \"'\" + String(v) + \"'\";\nconst esc = { text: escText, num: escNum, numNotNull: escNumNotNull, date: escDate };\nconst rendered = def.cols.map(function (c, i) { return esc[def.types[i]](values[i]); }).join(', ');\nconst conflictClause = def.conflict ? (' ON CONFLICT (' + def.conflict + ') DO NOTHING') : '';\nconst query = 'WITH ins AS (INSERT INTO ' + def.table + ' (' + def.cols.join(', ') + ') VALUES (' + rendered + ')' + conflictClause + ' RETURNING id) SELECT COUNT(*) AS inserted_count FROM ins;';\nreturn [{ json: { query } }];"
+      }
+    },
+    {
+      "id": "pg1",
+      "name": "Run Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        -120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "eo7uMjjFUzvjTAGi",
-          "name": "Google Sheets account"
+        "postgres": {
+          "id": "NVJk0SsDUL8En4zV",
+          "name": "Postgres account"
         }
+      }
+    },
+    {
+      "id": "if2",
+      "name": "Inserted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ Number($json.inserted_count) > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     },
     {
@@ -118,13 +159,30 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
-        -100
+        1320,
+        -200
       ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true }) }}",
         "options": {}
+      }
+    },
+    {
+      "id": "resp3",
+      "name": "Respond Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        -40
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: \"a record with that key already exists\" }) }}",
+        "options": {
+          "responseCode": 400
+        }
       }
     },
     {
@@ -172,7 +230,7 @@
       "main": [
         [
           {
-            "node": "Append Row",
+            "node": "Build Insert SQL",
             "type": "main",
             "index": 0
           }
@@ -186,11 +244,40 @@
         ]
       ]
     },
-    "Append Row": {
+    "Build Insert SQL": {
+      "main": [
+        [
+          {
+            "node": "Run Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Insert": {
+      "main": [
+        [
+          {
+            "node": "Inserted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserted?": {
       "main": [
         [
           {
             "node": "Respond Created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Duplicate",
             "type": "main",
             "index": 0
           }
@@ -208,9 +295,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "5e276f95-0372-4505-9b28-2de57b255560",
-  "activeVersionId": "5e276f95-0372-4505-9b28-2de57b255560",
-  "versionCounter": 12,
+  "versionId": "72214b65-f3b8-4e98-8f5e-5ef3fd816b18",
+  "activeVersionId": "72214b65-f3b8-4e98-8f5e-5ef3fd816b18",
+  "versionCounter": 18,
   "triggerCount": 1,
   "shared": [
     {
@@ -233,9 +320,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-13T17:54:20.220Z",
-    "createdAt": "2026-06-13T17:54:20.220Z",
-    "versionId": "5e276f95-0372-4505-9b28-2de57b255560",
+    "updatedAt": "2026-06-26T10:44:00.048Z",
+    "createdAt": "2026-06-26T10:44:00.048Z",
+    "versionId": "72214b65-f3b8-4e98-8f5e-5ef3fd816b18",
     "workflowId": "uwl7mHJ8oBzvraqb",
     "nodes": [
       {
@@ -248,7 +335,7 @@
           -260
         ],
         "parameters": {
-          "content": "## Record Creator (Workflow 9)\nPOST /finance-create { tab, values }. Validates the tab + value count, then appends the row to the Goals / Assets / Categories tab. 400 + error list on invalid input — nothing is written.\n\nTransactions still use Workflow 2 (transaction-logger).",
+          "content": "## Record Creator (Workflow 9)\nPOST /finance-create { tab, values }. Validates the tab + value count, then inserts the row into the matching Postgres table. 400 + error list on invalid input or duplicate key — nothing is written.\n\nTransactions still use Workflow 2 (transaction-logger).",
           "height": 240,
           "width": 540,
           "color": 4
@@ -281,7 +368,7 @@
           0
         ],
         "parameters": {
-          "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 3, Budgets: 2 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
+          "jsCode": "const b = $json.body || {};\nconst tab = String(b.tab || '');\nconst values = Array.isArray(b.values) ? b.values : null;\nconst allowed = { Goals: 5, Assets: 8, Categories: 3, Accounts: 3, Budgets: 2, Bills: 5 };\nconst errors = [];\nif (!allowed[tab]) errors.push('invalid tab: ' + tab);\nif (!values) errors.push('values must be an array');\nelse if (allowed[tab] && values.length !== allowed[tab]) errors.push('expected ' + allowed[tab] + ' values for ' + tab + ', got ' + values.length);\nelse if (values[0] === undefined || String(values[0]).trim() === '') errors.push('first column is required');\nreturn [{ json: { valid: errors.length === 0, errors: errors, tab: tab, values: values || [] } }];"
         }
       },
       {
@@ -318,29 +405,70 @@
         }
       },
       {
-        "id": "http1",
-        "name": "Append Row",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
+        "id": "codesql1",
+        "name": "Build Insert SQL",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
         "position": [
           660,
-          -100
+          -120
         ],
         "parameters": {
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googleSheetsOAuth2Api",
-          "options": {},
-          "method": "POST",
-          "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/' + encodeURIComponent($json.tab) + '!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS' }}",
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={{ JSON.stringify({ values: [ $json.values ] }) }}"
+          "jsCode": "const TABLES = {\n  Goals: { table: 'goals', cols: ['goal_name','target_amount','saved_so_far','monthly_contribution','priority'], types: ['text','numNotNull','numNotNull','numNotNull','text'], conflict: null },\n  Assets: { table: 'assets', cols: ['asset_name','type','value','institution','start_date','maturity_date','interest_rate','notes'], types: ['text','text','numNotNull','text','date','date','num','text'], conflict: null },\n  Categories: { table: 'categories', cols: ['name','type','color'], types: ['text','text','text'], conflict: 'name' },\n  Accounts: { table: 'accounts', cols: ['account_name','starting_balance','as_of_date'], types: ['text','numNotNull','date'], conflict: 'account_name' },\n  Budgets: { table: 'budgets', cols: ['category','monthly_limit'], types: ['text','numNotNull'], conflict: 'category' },\n  Bills: { table: 'bills', cols: ['name','amount','due_day','category','account'], types: ['text','numNotNull','numNotNull','text','text'], conflict: 'name' },\n};\nconst tab = $json.tab;\nconst values = $json.values || [];\nconst def = TABLES[tab];\nconst escText = (v) => (v === undefined || v === null || v === '') ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst escNum = (v) => (v === undefined || v === null || v === '') ? 'NULL' : Number(v);\nconst escNumNotNull = (v) => (v === undefined || v === null || v === '') ? 0 : Number(v);\nconst escDate = (v) => (v === undefined || v === null || v === '') ? 'NULL' : \"'\" + String(v) + \"'\";\nconst esc = { text: escText, num: escNum, numNotNull: escNumNotNull, date: escDate };\nconst rendered = def.cols.map(function (c, i) { return esc[def.types[i]](values[i]); }).join(', ');\nconst conflictClause = def.conflict ? (' ON CONFLICT (' + def.conflict + ') DO NOTHING') : '';\nconst query = 'WITH ins AS (INSERT INTO ' + def.table + ' (' + def.cols.join(', ') + ') VALUES (' + rendered + ')' + conflictClause + ' RETURNING id) SELECT COUNT(*) AS inserted_count FROM ins;';\nreturn [{ json: { query } }];"
+        }
+      },
+      {
+        "id": "pg1",
+        "name": "Run Insert",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          880,
+          -120
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "={{ $json.query }}",
+          "options": {}
         },
         "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "eo7uMjjFUzvjTAGi",
-            "name": "Google Sheets account"
+          "postgres": {
+            "id": "NVJk0SsDUL8En4zV",
+            "name": "Postgres account"
           }
+        }
+      },
+      {
+        "id": "if2",
+        "name": "Inserted?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1100,
+          -120
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "c2",
+                "leftValue": "={{ Number($json.inserted_count) > 0 }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
         }
       },
       {
@@ -349,13 +477,30 @@
         "type": "n8n-nodes-base.respondToWebhook",
         "typeVersion": 1.1,
         "position": [
-          880,
-          -100
+          1320,
+          -200
         ],
         "parameters": {
           "respondWith": "json",
           "responseBody": "={{ JSON.stringify({ success: true }) }}",
           "options": {}
+        }
+      },
+      {
+        "id": "resp3",
+        "name": "Respond Duplicate",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1320,
+          -40
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: false, error: \"a record with that key already exists\" }) }}",
+          "options": {
+            "responseCode": 400
+          }
         }
       },
       {
@@ -403,7 +548,7 @@
         "main": [
           [
             {
-              "node": "Append Row",
+              "node": "Build Insert SQL",
               "type": "main",
               "index": 0
             }
@@ -417,11 +562,40 @@
           ]
         ]
       },
-      "Append Row": {
+      "Build Insert SQL": {
+        "main": [
+          [
+            {
+              "node": "Run Insert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Run Insert": {
+        "main": [
+          [
+            {
+              "node": "Inserted?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Inserted?": {
         "main": [
           [
             {
               "node": "Respond Created",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond Duplicate",
               "type": "main",
               "index": 0
             }
@@ -435,18 +609,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-13T17:54:20.269Z",
-        "id": 542,
+        "createdAt": "2026-06-26T10:44:00.089Z",
+        "id": 561,
         "workflowId": "uwl7mHJ8oBzvraqb",
-        "versionId": "5e276f95-0372-4505-9b28-2de57b255560",
+        "versionId": "72214b65-f3b8-4e98-8f5e-5ef3fd816b18",
         "event": "activated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       },
       {
-        "createdAt": "2026-06-13T17:54:20.257Z",
-        "id": 541,
+        "createdAt": "2026-06-26T10:44:00.077Z",
+        "id": 560,
         "workflowId": "uwl7mHJ8oBzvraqb",
-        "versionId": "5e276f95-0372-4505-9b28-2de57b255560",
+        "versionId": "72214b65-f3b8-4e98-8f5e-5ef3fd816b18",
         "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }

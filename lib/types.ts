@@ -10,6 +10,10 @@ export interface DashboardData {
     daysLeftInMonth: number
     /** Sum of all account starting balances = money added to accounts ("Total Income So Far"). */
     accountsStartingTotal: number
+    /** Sum of all recurring bills this month (display only — not yet wired into safeToSpend). */
+    billsCommitted: number
+    /** Sum of recurring bills not yet marked paid this month. */
+    billsUnpaid: number
   }
   accountBalances: { name: string; balance: number }[]
   goals: {
@@ -35,6 +39,21 @@ export interface DashboardData {
   dailyTrend: { day: string; income: number; expenses: number }[]
   categories: { name: string; type: 'Income' | 'Expense'; color: string }[]
   budgets: { category: string; limit: number; spent: number; remaining: number; pct: number }[]
+  bills: Bill[]
+}
+
+export interface Bill {
+  name: string
+  amount: number
+  /** Day of month the bill is due (1–31, clamped to the month length). */
+  dueDay: number
+  category: string
+  account: string
+  /** True if a current-month Expense transaction tagged `bill:<name>` exists. */
+  paid: boolean
+  /** This month's due date, YYYY-MM-DD. The mark-paid transaction is logged on this date. */
+  dueDate: string
+  daysToDue: number
 }
 
 export interface Transaction {

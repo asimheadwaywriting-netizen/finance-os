@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-13T17:54:19.510Z",
+  "updatedAt": "2026-06-26T10:43:58.305Z",
   "createdAt": "2026-06-12T05:20:54.577Z",
   "id": "8GejOtDtsht0CfEJ",
   "name": "finance-data-aggregator",
@@ -17,7 +17,7 @@
         -260
       ],
       "parameters": {
-        "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.",
+        "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 6 Postgres tables in one query, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.",
         "height": 240,
         "width": 520,
         "color": 4
@@ -41,24 +41,23 @@
       "webhookId": "62be05c5-5018-4168-88b5-4d477b16ceb0"
     },
     {
-      "id": "http1",
-      "name": "Read All 4 Sheet Tabs",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "pg1",
+      "name": "Read From Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
         220,
         0
       ],
       "parameters": {
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values:batchGet?ranges=Transactions&ranges=Accounts&ranges=Goals&ranges=Assets&ranges=Categories&ranges=Budgets&valueRenderOption=UNFORMATTED_VALUE",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COALESCE(json_agg(json_build_object(\n    'date', to_char(date,'YYYY-MM-DD'), 'type', type, 'category', category,\n    'payee', payee, 'amount', amount, 'account', account, 'note', note\n  )), '[]') FROM transactions) AS transactions,\n  (SELECT COALESCE(json_agg(json_build_object(\n    'account_name', account_name, 'starting_balance', starting_balance,\n    'as_of_date', to_char(as_of_date,'YYYY-MM-DD')\n  )), '[]') FROM accounts) AS accounts,\n  (SELECT COALESCE(json_agg(json_build_object(\n    'goal_name', goal_name, 'target_amount', target_amount, 'saved_so_far', saved_so_far,\n    'monthly_contribution', monthly_contribution, 'priority', priority\n  )), '[]') FROM goals) AS goals,\n  (SELECT COALESCE(json_agg(json_build_object(\n    'asset_name', asset_name, 'type', type, 'value', value, 'institution', institution,\n    'maturity_date', to_char(maturity_date,'YYYY-MM-DD'), 'interest_rate', interest_rate\n  )), '[]') FROM assets) AS assets,\n  (SELECT COALESCE(json_agg(json_build_object('name', name, 'type', type, 'color', color)), '[]') FROM categories) AS categories,\n  (SELECT COALESCE(json_agg(json_build_object('category', category, 'monthly_limit', monthly_limit)), '[]') FROM budgets) AS budgets,\n  (SELECT COALESCE(json_agg(json_build_object('name', name, 'amount', amount, 'due_day', due_day, 'category', category, 'account', account)), '[]') FROM bills) AS bills;",
         "options": {}
       },
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "eo7uMjjFUzvjTAGi",
-          "name": "Google Sheets account"
+        "postgres": {
+          "id": "NVJk0SsDUL8En4zV",
+          "name": "Postgres account"
         }
       }
     },
@@ -72,7 +71,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const res = $json;\nconst tabs = {};\nfor (const vr of (res.valueRanges || [])) {\n  const tab = vr.range.split('!')[0].replace(/'/g, '');\n  tabs[tab] = vr.values || [];\n}\nfunction toObjects(values) {\n  if (!values || values.length < 2) return [];\n  const head = values[0];\n  return values.slice(1).map(function (r) {\n    const o = {};\n    head.forEach(function (h, i) { o[h] = r[i] === undefined ? '' : r[i]; });\n    return o;\n  });\n}\n// Sheets may return date cells as serial numbers — normalise to YYYY-MM-DD\nfunction toISO(d) {\n  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);\n  return String(d).slice(0, 10);\n}\nconst txs = toObjects(tabs.Transactions).map(function (t) {\n  return {\n    date: toISO(t.date),\n    type: t.type === 'Income' ? 'Income' : 'Expense',\n    category: String(t.category || ''),\n    payee: String(t.payee || ''),\n    amount: Number(t.amount) || 0,\n    account: String(t.account || ''),\n    note: String(t.note || '')\n  };\n});\nconst accounts = toObjects(tabs.Accounts);\nconst accountsStartingTotal = accounts.reduce(function (s, a) { return s + (Number(a.starting_balance) || 0); }, 0);\nconst goals = toObjects(tabs.Goals);\nconst assets = toObjects(tabs.Assets);\nconst categories = toObjects(tabs.Categories).map(function (c) { return { name: String(c.name || ''), type: c.type === 'Income' ? 'Income' : 'Expense', color: String(c.color || '#6b7280') }; });\n\nconst today = DateTime.now().setZone('Asia/Dhaka');\nconst ym = today.toFormat('yyyy-MM');\n\nconst curr = txs.filter(function (t) { return t.date.indexOf(ym) === 0; });\nconst income = curr.filter(function (t) { return t.type === 'Income'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst expenses = curr.filter(function (t) { return t.type === 'Expense'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst net = income - expenses;\nconst goalContrib = goals.reduce(function (s, g) { return s + (Number(g.monthly_contribution) || 0); }, 0);\nconst daysLeftInMonth = today.daysInMonth - today.day;\n\nconst accountBalances = accounts.map(function (a) {\n  const name = String(a.account_name || '');\n  const asOf = a.as_of_date ? toISO(a.as_of_date) : '';\n  const delta = txs.reduce(function (s, t) {\n    if (t.account !== name) return s;\n    if (asOf && t.date <= asOf) return s;\n    return s + (t.type === 'Income' ? t.amount : -t.amount);\n  }, 0);\n  const bal = (Number(a.starting_balance) || 0) + delta;\n  return { name: name, balance: bal < 0 ? 0 : bal };\n});\nconst safeToSpend = Math.max(0, accountBalances.reduce(function (s, a) { return s + a.balance; }, 0) - goalContrib);\n\nconst goalsOut = goals.map(function (g) {\n  const target = Number(g.target_amount) || 0;\n  const saved = Number(g.saved_so_far) || 0;\n  return {\n    name: String(g.goal_name || ''),\n    target: target,\n    saved: saved,\n    contribution: Number(g.monthly_contribution) || 0,\n    priority: String(g.priority || ''),\n    progressPct: target > 0 ? Math.round((saved / target) * 100) : 0\n  };\n});\n\nconst assetsOut = assets.map(function (a) {\n  const md = a.maturity_date ? toISO(a.maturity_date) : '';\n  return {\n    name: String(a.asset_name || ''),\n    type: String(a.type || ''),\n    value: Number(a.value) || 0,\n    institution: String(a.institution || ''),\n    daysToMaturity: md ? Math.ceil(DateTime.fromISO(md).diff(today, 'days').days) : null,\n    interestRate: Number(a.interest_rate) || 0,\n    maturityDate: md || null\n  };\n});\n\nconst recentTransactions = txs.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);\n\nconst catTotals = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense') catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;\n});\nconst spendingByCategory = Object.keys(catTotals)\n  .map(function (c) { return { category: c, amount: catTotals[c] }; })\n  .sort(function (a, b) { return b.amount - a.amount; });\n\nconst byMonth = {};\ntxs.forEach(function (t) {\n  const m = t.date.slice(0, 7);\n  if (!byMonth[m]) byMonth[m] = { income: 0, expenses: 0 };\n  byMonth[m][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst monthlyTrend = Object.keys(byMonth).sort().slice(-6).map(function (m) {\n  return {\n    month: DateTime.fromISO(m + '-01').toFormat('MMM'),\n    income: byMonth[m].income,\n    expenses: byMonth[m].expenses\n  };\n});\n\nconst byDay = {};\ncurr.forEach(function (t) {\n  const dd = t.date.slice(8, 10);\n  if (!byDay[dd]) byDay[dd] = { income: 0, expenses: 0 };\n  byDay[dd][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst daysToShow = Math.min(today.daysInMonth, today.day);\nconst dailyTrend = [];\nfor (let i = 1; i <= daysToShow; i++) {\n  const k = String(i).padStart(2, '0');\n  const e = byDay[k] || { income: 0, expenses: 0 };\n  dailyTrend.push({ day: String(i), income: e.income, expenses: e.expenses });\n}\nconst budgets = toObjects(tabs.Budgets).map(function (b) {\n  const cat = String(b.category || '');\n  const limit = Number(b.monthly_limit) || 0;\n  const spent = catTotals[cat] || 0;\n  return { category: cat, limit: limit, spent: spent, remaining: limit - spent, pct: limit > 0 ? Math.round((spent / limit) * 100) : 0 };\n});\nreturn [{ json: {\n  metrics: { income: income, expenses: expenses, net: net, safeToSpend: safeToSpend, daysLeftInMonth: daysLeftInMonth, accountsStartingTotal: accountsStartingTotal },\n  accountBalances: accountBalances,\n  goals: goalsOut,\n  assets: assetsOut,\n  recentTransactions: recentTransactions,\n  spendingByCategory: spendingByCategory,\n  monthlyTrend: monthlyTrend,\n  dailyTrend: dailyTrend,\n  categories: categories,\n  budgets: budgets\n} }];"
+        "jsCode": "const transactions = $json.transactions || [];\nconst accounts = $json.accounts || [];\nconst goals = $json.goals || [];\nconst assets = $json.assets || [];\nconst categoriesRaw = $json.categories || [];\nconst budgetsRaw = $json.budgets || [];\nconst billsRaw = $json.bills || [];\n\nfunction toISO(d) {\n  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);\n  return String(d || '').slice(0, 10);\n}\n\nconst txs = transactions.map(function (t) {\n  return {\n    date: toISO(t.date),\n    type: t.type === 'Income' ? 'Income' : 'Expense',\n    category: String(t.category || ''),\n    payee: String(t.payee || ''),\n    amount: Number(t.amount) || 0,\n    account: String(t.account || ''),\n    note: String(t.note || '')\n  };\n});\nconst accountsStartingTotal = accounts.reduce(function (s, a) { return s + (Number(a.starting_balance) || 0); }, 0);\nconst categories = categoriesRaw.map(function (c) { return { name: String(c.name || ''), type: c.type === 'Income' ? 'Income' : 'Expense', color: String(c.color || '#6b7280') }; });\n\nconst today = DateTime.now().setZone('Asia/Dhaka');\nconst ym = today.toFormat('yyyy-MM');\n\nconst curr = txs.filter(function (t) { return t.date.indexOf(ym) === 0; });\nconst income = curr.filter(function (t) { return t.type === 'Income'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst expenses = curr.filter(function (t) { return t.type === 'Expense'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst net = income - expenses;\nconst goalContrib = goals.reduce(function (s, g) { return s + (Number(g.monthly_contribution) || 0); }, 0);\nconst daysLeftInMonth = today.daysInMonth - today.day;\n\nconst accountBalances = accounts.map(function (a) {\n  const name = String(a.account_name || '');\n  const asOf = a.as_of_date ? toISO(a.as_of_date) : '';\n  const delta = txs.reduce(function (s, t) {\n    if (t.account !== name) return s;\n    if (asOf && t.date <= asOf) return s;\n    return s + (t.type === 'Income' ? t.amount : -t.amount);\n  }, 0);\n  const bal = (Number(a.starting_balance) || 0) + delta;\n  return { name: name, balance: bal < 0 ? 0 : bal };\n});\nconst safeToSpend = Math.max(0, accountBalances.reduce(function (s, a) { return s + a.balance; }, 0) - goalContrib);\n\nconst goalsOut = goals.map(function (g) {\n  const target = Number(g.target_amount) || 0;\n  const saved = Number(g.saved_so_far) || 0;\n  return {\n    name: String(g.goal_name || ''),\n    target: target,\n    saved: saved,\n    contribution: Number(g.monthly_contribution) || 0,\n    priority: String(g.priority || ''),\n    progressPct: target > 0 ? Math.round((saved / target) * 100) : 0\n  };\n});\n\nconst assetsOut = assets.map(function (a) {\n  const md = a.maturity_date ? toISO(a.maturity_date) : '';\n  return {\n    name: String(a.asset_name || ''),\n    type: String(a.type || ''),\n    value: Number(a.value) || 0,\n    institution: String(a.institution || ''),\n    daysToMaturity: md ? Math.ceil(DateTime.fromISO(md).diff(today, 'days').days) : null,\n    interestRate: Number(a.interest_rate) || 0,\n    maturityDate: md || null\n  };\n});\n\nconst recentTransactions = txs.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);\n\nconst catTotals = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense') catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;\n});\nconst spendingByCategory = Object.keys(catTotals)\n  .map(function (c) { return { category: c, amount: catTotals[c] }; })\n  .sort(function (a, b) { return b.amount - a.amount; });\n\nconst byMonth = {};\ntxs.forEach(function (t) {\n  const m = t.date.slice(0, 7);\n  if (!byMonth[m]) byMonth[m] = { income: 0, expenses: 0 };\n  byMonth[m][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst monthlyTrend = Object.keys(byMonth).sort().slice(-6).map(function (m) {\n  return {\n    month: DateTime.fromISO(m + '-01').toFormat('MMM'),\n    income: byMonth[m].income,\n    expenses: byMonth[m].expenses\n  };\n});\n\nconst byDay = {};\ncurr.forEach(function (t) {\n  const dd = t.date.slice(8, 10);\n  if (!byDay[dd]) byDay[dd] = { income: 0, expenses: 0 };\n  byDay[dd][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst daysToShow = Math.min(today.daysInMonth, today.day);\nconst dailyTrend = [];\nfor (let i = 1; i <= daysToShow; i++) {\n  const k = String(i).padStart(2, '0');\n  const e = byDay[k] || { income: 0, expenses: 0 };\n  dailyTrend.push({ day: String(i), income: e.income, expenses: e.expenses });\n}\nconst budgets = budgetsRaw.map(function (b) {\n  const cat = String(b.category || '');\n  const limit = Number(b.monthly_limit) || 0;\n  const spent = catTotals[cat] || 0;\n  return { category: cat, limit: limit, spent: spent, remaining: limit - spent, pct: limit > 0 ? Math.round((spent / limit) * 100) : 0 };\n});\n\nconst BILL_TAG = 'bill:';\nconst paidBillNames = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense' && t.note && t.note.indexOf(BILL_TAG) === 0) {\n    paidBillNames[t.note.slice(BILL_TAG.length)] = true;\n  }\n});\nconst billsOut = billsRaw.map(function (b) {\n  const name = String(b.name || '');\n  const dueDay = Math.min(Math.max(parseInt(b.due_day, 10) || 1, 1), today.daysInMonth);\n  const dueDate = today.toFormat('yyyy-MM') + '-' + String(dueDay).padStart(2, '0');\n  const paid = !!paidBillNames[name];\n  return {\n    name: name,\n    amount: Number(b.amount) || 0,\n    dueDay: dueDay,\n    category: String(b.category || ''),\n    account: String(b.account || ''),\n    paid: paid,\n    dueDate: dueDate,\n    daysToDue: Math.ceil(DateTime.fromISO(dueDate).diff(today.startOf('day'), 'days').days)\n  };\n});\nconst billsCommitted = billsOut.reduce(function (s, b) { return s + b.amount; }, 0);\nconst billsUnpaid = billsOut.reduce(function (s, b) { return s + (b.paid ? 0 : b.amount); }, 0);\n\nreturn [{ json: {\n  metrics: { income: income, expenses: expenses, net: net, safeToSpend: safeToSpend, daysLeftInMonth: daysLeftInMonth, accountsStartingTotal: accountsStartingTotal, billsCommitted: billsCommitted, billsUnpaid: billsUnpaid },\n  accountBalances: accountBalances,\n  goals: goalsOut,\n  assets: assetsOut,\n  recentTransactions: recentTransactions,\n  spendingByCategory: spendingByCategory,\n  monthlyTrend: monthlyTrend,\n  dailyTrend: dailyTrend,\n  categories: categories,\n  budgets: budgets,\n  bills: billsOut\n} }];"
       }
     },
     {
@@ -94,14 +93,14 @@
       "main": [
         [
           {
-            "node": "Read All 4 Sheet Tabs",
+            "node": "Read From Postgres",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read All 4 Sheet Tabs": {
+    "Read From Postgres": {
       "main": [
         [
           {
@@ -134,9 +133,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "9e079833-d322-42b9-ab2c-e451d88315bd",
-  "activeVersionId": "9e079833-d322-42b9-ab2c-e451d88315bd",
-  "versionCounter": 27,
+  "versionId": "9845cf85-e70a-45b2-b78e-4fd7115aef7b",
+  "activeVersionId": "9845cf85-e70a-45b2-b78e-4fd7115aef7b",
+  "versionCounter": 33,
   "triggerCount": 1,
   "shared": [
     {
@@ -159,9 +158,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-13T17:54:19.513Z",
-    "createdAt": "2026-06-13T17:54:19.513Z",
-    "versionId": "9e079833-d322-42b9-ab2c-e451d88315bd",
+    "updatedAt": "2026-06-26T10:43:58.306Z",
+    "createdAt": "2026-06-26T10:43:58.306Z",
+    "versionId": "9845cf85-e70a-45b2-b78e-4fd7115aef7b",
     "workflowId": "8GejOtDtsht0CfEJ",
     "nodes": [
       {
@@ -174,7 +173,7 @@
           -260
         ],
         "parameters": {
-          "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 4 tabs of the Finance OS Google Sheet in one batch call, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.",
+          "content": "## Finance Data Aggregator (Workflow 1)\nCalled by the Next.js dashboard via GET /api/dashboard. Reads all 6 Postgres tables in one query, computes every metric in the Code node, and responds with DashboardData JSON.\n\nRule: ALL financial math lives in the Code node. The AI (OpenAI) never computes numbers.",
           "height": 240,
           "width": 520,
           "color": 4
@@ -198,24 +197,23 @@
         "webhookId": "62be05c5-5018-4168-88b5-4d477b16ceb0"
       },
       {
-        "id": "http1",
-        "name": "Read All 4 Sheet Tabs",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
+        "id": "pg1",
+        "name": "Read From Postgres",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
         "position": [
           220,
           0
         ],
         "parameters": {
-          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values:batchGet?ranges=Transactions&ranges=Accounts&ranges=Goals&ranges=Assets&ranges=Categories&ranges=Budgets&valueRenderOption=UNFORMATTED_VALUE",
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "operation": "executeQuery",
+          "query": "SELECT\n  (SELECT COALESCE(json_agg(json_build_object(\n    'date', to_char(date,'YYYY-MM-DD'), 'type', type, 'category', category,\n    'payee', payee, 'amount', amount, 'account', account, 'note', note\n  )), '[]') FROM transactions) AS transactions,\n  (SELECT COALESCE(json_agg(json_build_object(\n    'account_name', account_name, 'starting_balance', starting_balance,\n    'as_of_date', to_char(as_of_date,'YYYY-MM-DD')\n  )), '[]') FROM accounts) AS accounts,\n  (SELECT COALESCE(json_agg(json_build_object(\n    'goal_name', goal_name, 'target_amount', target_amount, 'saved_so_far', saved_so_far,\n    'monthly_contribution', monthly_contribution, 'priority', priority\n  )), '[]') FROM goals) AS goals,\n  (SELECT COALESCE(json_agg(json_build_object(\n    'asset_name', asset_name, 'type', type, 'value', value, 'institution', institution,\n    'maturity_date', to_char(maturity_date,'YYYY-MM-DD'), 'interest_rate', interest_rate\n  )), '[]') FROM assets) AS assets,\n  (SELECT COALESCE(json_agg(json_build_object('name', name, 'type', type, 'color', color)), '[]') FROM categories) AS categories,\n  (SELECT COALESCE(json_agg(json_build_object('category', category, 'monthly_limit', monthly_limit)), '[]') FROM budgets) AS budgets,\n  (SELECT COALESCE(json_agg(json_build_object('name', name, 'amount', amount, 'due_day', due_day, 'category', category, 'account', account)), '[]') FROM bills) AS bills;",
           "options": {}
         },
         "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "eo7uMjjFUzvjTAGi",
-            "name": "Google Sheets account"
+          "postgres": {
+            "id": "NVJk0SsDUL8En4zV",
+            "name": "Postgres account"
           }
         }
       },
@@ -229,7 +227,7 @@
           0
         ],
         "parameters": {
-          "jsCode": "const res = $json;\nconst tabs = {};\nfor (const vr of (res.valueRanges || [])) {\n  const tab = vr.range.split('!')[0].replace(/'/g, '');\n  tabs[tab] = vr.values || [];\n}\nfunction toObjects(values) {\n  if (!values || values.length < 2) return [];\n  const head = values[0];\n  return values.slice(1).map(function (r) {\n    const o = {};\n    head.forEach(function (h, i) { o[h] = r[i] === undefined ? '' : r[i]; });\n    return o;\n  });\n}\n// Sheets may return date cells as serial numbers — normalise to YYYY-MM-DD\nfunction toISO(d) {\n  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);\n  return String(d).slice(0, 10);\n}\nconst txs = toObjects(tabs.Transactions).map(function (t) {\n  return {\n    date: toISO(t.date),\n    type: t.type === 'Income' ? 'Income' : 'Expense',\n    category: String(t.category || ''),\n    payee: String(t.payee || ''),\n    amount: Number(t.amount) || 0,\n    account: String(t.account || ''),\n    note: String(t.note || '')\n  };\n});\nconst accounts = toObjects(tabs.Accounts);\nconst accountsStartingTotal = accounts.reduce(function (s, a) { return s + (Number(a.starting_balance) || 0); }, 0);\nconst goals = toObjects(tabs.Goals);\nconst assets = toObjects(tabs.Assets);\nconst categories = toObjects(tabs.Categories).map(function (c) { return { name: String(c.name || ''), type: c.type === 'Income' ? 'Income' : 'Expense', color: String(c.color || '#6b7280') }; });\n\nconst today = DateTime.now().setZone('Asia/Dhaka');\nconst ym = today.toFormat('yyyy-MM');\n\nconst curr = txs.filter(function (t) { return t.date.indexOf(ym) === 0; });\nconst income = curr.filter(function (t) { return t.type === 'Income'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst expenses = curr.filter(function (t) { return t.type === 'Expense'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst net = income - expenses;\nconst goalContrib = goals.reduce(function (s, g) { return s + (Number(g.monthly_contribution) || 0); }, 0);\nconst daysLeftInMonth = today.daysInMonth - today.day;\n\nconst accountBalances = accounts.map(function (a) {\n  const name = String(a.account_name || '');\n  const asOf = a.as_of_date ? toISO(a.as_of_date) : '';\n  const delta = txs.reduce(function (s, t) {\n    if (t.account !== name) return s;\n    if (asOf && t.date <= asOf) return s;\n    return s + (t.type === 'Income' ? t.amount : -t.amount);\n  }, 0);\n  const bal = (Number(a.starting_balance) || 0) + delta;\n  return { name: name, balance: bal < 0 ? 0 : bal };\n});\nconst safeToSpend = Math.max(0, accountBalances.reduce(function (s, a) { return s + a.balance; }, 0) - goalContrib);\n\nconst goalsOut = goals.map(function (g) {\n  const target = Number(g.target_amount) || 0;\n  const saved = Number(g.saved_so_far) || 0;\n  return {\n    name: String(g.goal_name || ''),\n    target: target,\n    saved: saved,\n    contribution: Number(g.monthly_contribution) || 0,\n    priority: String(g.priority || ''),\n    progressPct: target > 0 ? Math.round((saved / target) * 100) : 0\n  };\n});\n\nconst assetsOut = assets.map(function (a) {\n  const md = a.maturity_date ? toISO(a.maturity_date) : '';\n  return {\n    name: String(a.asset_name || ''),\n    type: String(a.type || ''),\n    value: Number(a.value) || 0,\n    institution: String(a.institution || ''),\n    daysToMaturity: md ? Math.ceil(DateTime.fromISO(md).diff(today, 'days').days) : null,\n    interestRate: Number(a.interest_rate) || 0,\n    maturityDate: md || null\n  };\n});\n\nconst recentTransactions = txs.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);\n\nconst catTotals = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense') catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;\n});\nconst spendingByCategory = Object.keys(catTotals)\n  .map(function (c) { return { category: c, amount: catTotals[c] }; })\n  .sort(function (a, b) { return b.amount - a.amount; });\n\nconst byMonth = {};\ntxs.forEach(function (t) {\n  const m = t.date.slice(0, 7);\n  if (!byMonth[m]) byMonth[m] = { income: 0, expenses: 0 };\n  byMonth[m][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst monthlyTrend = Object.keys(byMonth).sort().slice(-6).map(function (m) {\n  return {\n    month: DateTime.fromISO(m + '-01').toFormat('MMM'),\n    income: byMonth[m].income,\n    expenses: byMonth[m].expenses\n  };\n});\n\nconst byDay = {};\ncurr.forEach(function (t) {\n  const dd = t.date.slice(8, 10);\n  if (!byDay[dd]) byDay[dd] = { income: 0, expenses: 0 };\n  byDay[dd][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst daysToShow = Math.min(today.daysInMonth, today.day);\nconst dailyTrend = [];\nfor (let i = 1; i <= daysToShow; i++) {\n  const k = String(i).padStart(2, '0');\n  const e = byDay[k] || { income: 0, expenses: 0 };\n  dailyTrend.push({ day: String(i), income: e.income, expenses: e.expenses });\n}\nconst budgets = toObjects(tabs.Budgets).map(function (b) {\n  const cat = String(b.category || '');\n  const limit = Number(b.monthly_limit) || 0;\n  const spent = catTotals[cat] || 0;\n  return { category: cat, limit: limit, spent: spent, remaining: limit - spent, pct: limit > 0 ? Math.round((spent / limit) * 100) : 0 };\n});\nreturn [{ json: {\n  metrics: { income: income, expenses: expenses, net: net, safeToSpend: safeToSpend, daysLeftInMonth: daysLeftInMonth, accountsStartingTotal: accountsStartingTotal },\n  accountBalances: accountBalances,\n  goals: goalsOut,\n  assets: assetsOut,\n  recentTransactions: recentTransactions,\n  spendingByCategory: spendingByCategory,\n  monthlyTrend: monthlyTrend,\n  dailyTrend: dailyTrend,\n  categories: categories,\n  budgets: budgets\n} }];"
+          "jsCode": "const transactions = $json.transactions || [];\nconst accounts = $json.accounts || [];\nconst goals = $json.goals || [];\nconst assets = $json.assets || [];\nconst categoriesRaw = $json.categories || [];\nconst budgetsRaw = $json.budgets || [];\nconst billsRaw = $json.bills || [];\n\nfunction toISO(d) {\n  if (typeof d === 'number') return new Date(Math.round((d - 25569) * 86400000)).toISOString().slice(0, 10);\n  return String(d || '').slice(0, 10);\n}\n\nconst txs = transactions.map(function (t) {\n  return {\n    date: toISO(t.date),\n    type: t.type === 'Income' ? 'Income' : 'Expense',\n    category: String(t.category || ''),\n    payee: String(t.payee || ''),\n    amount: Number(t.amount) || 0,\n    account: String(t.account || ''),\n    note: String(t.note || '')\n  };\n});\nconst accountsStartingTotal = accounts.reduce(function (s, a) { return s + (Number(a.starting_balance) || 0); }, 0);\nconst categories = categoriesRaw.map(function (c) { return { name: String(c.name || ''), type: c.type === 'Income' ? 'Income' : 'Expense', color: String(c.color || '#6b7280') }; });\n\nconst today = DateTime.now().setZone('Asia/Dhaka');\nconst ym = today.toFormat('yyyy-MM');\n\nconst curr = txs.filter(function (t) { return t.date.indexOf(ym) === 0; });\nconst income = curr.filter(function (t) { return t.type === 'Income'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst expenses = curr.filter(function (t) { return t.type === 'Expense'; }).reduce(function (s, t) { return s + t.amount; }, 0);\nconst net = income - expenses;\nconst goalContrib = goals.reduce(function (s, g) { return s + (Number(g.monthly_contribution) || 0); }, 0);\nconst daysLeftInMonth = today.daysInMonth - today.day;\n\nconst accountBalances = accounts.map(function (a) {\n  const name = String(a.account_name || '');\n  const asOf = a.as_of_date ? toISO(a.as_of_date) : '';\n  const delta = txs.reduce(function (s, t) {\n    if (t.account !== name) return s;\n    if (asOf && t.date <= asOf) return s;\n    return s + (t.type === 'Income' ? t.amount : -t.amount);\n  }, 0);\n  const bal = (Number(a.starting_balance) || 0) + delta;\n  return { name: name, balance: bal < 0 ? 0 : bal };\n});\nconst safeToSpend = Math.max(0, accountBalances.reduce(function (s, a) { return s + a.balance; }, 0) - goalContrib);\n\nconst goalsOut = goals.map(function (g) {\n  const target = Number(g.target_amount) || 0;\n  const saved = Number(g.saved_so_far) || 0;\n  return {\n    name: String(g.goal_name || ''),\n    target: target,\n    saved: saved,\n    contribution: Number(g.monthly_contribution) || 0,\n    priority: String(g.priority || ''),\n    progressPct: target > 0 ? Math.round((saved / target) * 100) : 0\n  };\n});\n\nconst assetsOut = assets.map(function (a) {\n  const md = a.maturity_date ? toISO(a.maturity_date) : '';\n  return {\n    name: String(a.asset_name || ''),\n    type: String(a.type || ''),\n    value: Number(a.value) || 0,\n    institution: String(a.institution || ''),\n    daysToMaturity: md ? Math.ceil(DateTime.fromISO(md).diff(today, 'days').days) : null,\n    interestRate: Number(a.interest_rate) || 0,\n    maturityDate: md || null\n  };\n});\n\nconst recentTransactions = txs.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);\n\nconst catTotals = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense') catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;\n});\nconst spendingByCategory = Object.keys(catTotals)\n  .map(function (c) { return { category: c, amount: catTotals[c] }; })\n  .sort(function (a, b) { return b.amount - a.amount; });\n\nconst byMonth = {};\ntxs.forEach(function (t) {\n  const m = t.date.slice(0, 7);\n  if (!byMonth[m]) byMonth[m] = { income: 0, expenses: 0 };\n  byMonth[m][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst monthlyTrend = Object.keys(byMonth).sort().slice(-6).map(function (m) {\n  return {\n    month: DateTime.fromISO(m + '-01').toFormat('MMM'),\n    income: byMonth[m].income,\n    expenses: byMonth[m].expenses\n  };\n});\n\nconst byDay = {};\ncurr.forEach(function (t) {\n  const dd = t.date.slice(8, 10);\n  if (!byDay[dd]) byDay[dd] = { income: 0, expenses: 0 };\n  byDay[dd][t.type === 'Income' ? 'income' : 'expenses'] += t.amount;\n});\nconst daysToShow = Math.min(today.daysInMonth, today.day);\nconst dailyTrend = [];\nfor (let i = 1; i <= daysToShow; i++) {\n  const k = String(i).padStart(2, '0');\n  const e = byDay[k] || { income: 0, expenses: 0 };\n  dailyTrend.push({ day: String(i), income: e.income, expenses: e.expenses });\n}\nconst budgets = budgetsRaw.map(function (b) {\n  const cat = String(b.category || '');\n  const limit = Number(b.monthly_limit) || 0;\n  const spent = catTotals[cat] || 0;\n  return { category: cat, limit: limit, spent: spent, remaining: limit - spent, pct: limit > 0 ? Math.round((spent / limit) * 100) : 0 };\n});\n\nconst BILL_TAG = 'bill:';\nconst paidBillNames = {};\ncurr.forEach(function (t) {\n  if (t.type === 'Expense' && t.note && t.note.indexOf(BILL_TAG) === 0) {\n    paidBillNames[t.note.slice(BILL_TAG.length)] = true;\n  }\n});\nconst billsOut = billsRaw.map(function (b) {\n  const name = String(b.name || '');\n  const dueDay = Math.min(Math.max(parseInt(b.due_day, 10) || 1, 1), today.daysInMonth);\n  const dueDate = today.toFormat('yyyy-MM') + '-' + String(dueDay).padStart(2, '0');\n  const paid = !!paidBillNames[name];\n  return {\n    name: name,\n    amount: Number(b.amount) || 0,\n    dueDay: dueDay,\n    category: String(b.category || ''),\n    account: String(b.account || ''),\n    paid: paid,\n    dueDate: dueDate,\n    daysToDue: Math.ceil(DateTime.fromISO(dueDate).diff(today.startOf('day'), 'days').days)\n  };\n});\nconst billsCommitted = billsOut.reduce(function (s, b) { return s + b.amount; }, 0);\nconst billsUnpaid = billsOut.reduce(function (s, b) { return s + (b.paid ? 0 : b.amount); }, 0);\n\nreturn [{ json: {\n  metrics: { income: income, expenses: expenses, net: net, safeToSpend: safeToSpend, daysLeftInMonth: daysLeftInMonth, accountsStartingTotal: accountsStartingTotal, billsCommitted: billsCommitted, billsUnpaid: billsUnpaid },\n  accountBalances: accountBalances,\n  goals: goalsOut,\n  assets: assetsOut,\n  recentTransactions: recentTransactions,\n  spendingByCategory: spendingByCategory,\n  monthlyTrend: monthlyTrend,\n  dailyTrend: dailyTrend,\n  categories: categories,\n  budgets: budgets,\n  bills: billsOut\n} }];"
         }
       },
       {
@@ -251,14 +249,14 @@
         "main": [
           [
             {
-              "node": "Read All 4 Sheet Tabs",
+              "node": "Read From Postgres",
               "type": "main",
               "index": 0
             }
           ]
         ]
       },
-      "Read All 4 Sheet Tabs": {
+      "Read From Postgres": {
         "main": [
           [
             {
@@ -287,18 +285,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-13T17:54:19.567Z",
-        "id": 540,
+        "createdAt": "2026-06-26T10:43:59.655Z",
+        "id": 559,
         "workflowId": "8GejOtDtsht0CfEJ",
-        "versionId": "9e079833-d322-42b9-ab2c-e451d88315bd",
+        "versionId": "9845cf85-e70a-45b2-b78e-4fd7115aef7b",
         "event": "activated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       },
       {
-        "createdAt": "2026-06-13T17:54:19.553Z",
-        "id": 539,
+        "createdAt": "2026-06-26T10:43:59.055Z",
+        "id": 558,
         "workflowId": "8GejOtDtsht0CfEJ",
-        "versionId": "9e079833-d322-42b9-ab2c-e451d88315bd",
+        "versionId": "9845cf85-e70a-45b2-b78e-4fd7115aef7b",
         "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }

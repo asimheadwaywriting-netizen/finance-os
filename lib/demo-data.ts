@@ -98,13 +98,29 @@ export function getDemoDashboard(): DashboardData {
     }
   })
 
+  // Sample recurring bills: two already paid this month, one due soon, one upcoming.
+  const ym = new Date().toISOString().slice(0, 7)
+  const billDefs = [
+    { name: 'Rent', amount: 18000, dueDay: 5, category: 'Rent / Housing', account: 'Cash', paid: true },
+    { name: 'Internet', amount: 1200, dueDay: 1, category: 'Bills & Utilities', account: 'bKash', paid: true },
+    { name: 'Electricity', amount: 3500, dueDay: Math.min(new Date().getDate() + 4, 28), category: 'Bills & Utilities', account: 'Cash', paid: false },
+    { name: 'Netflix', amount: 500, dueDay: 20, category: 'Subscriptions', account: 'bKash', paid: false },
+  ]
+  const bills = billDefs.map((d) => {
+    const dueDate = `${ym}-${String(d.dueDay).padStart(2, '0')}`
+    return { ...d, dueDate, daysToDue: daysFromToday(dueDate) }
+  })
+  const billsCommitted = bills.reduce((s, b) => s + b.amount, 0)
+  const billsUnpaid = bills.reduce((s, b) => s + (b.paid ? 0 : b.amount), 0)
+
   return {
     ...base,
-    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal, safeToSpend },
+    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal, safeToSpend, billsCommitted, billsUnpaid },
     assets,
     categories: demoCategories,
     dailyTrend: buildDailyTrend(),
     budgets: demoBudgets,
+    bills,
   }
 }
 

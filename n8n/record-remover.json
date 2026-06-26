@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-13T07:31:27.699Z",
+  "updatedAt": "2026-06-26T10:44:00.470Z",
   "createdAt": "2026-06-13T07:31:27.699Z",
   "id": "XBpyHnVzjOHulNje",
   "name": "record-remover",
@@ -17,7 +17,7 @@
         -260
       ],
       "parameters": {
-        "content": "## Record Remover (Workflow 8)\nPOST /finance-delete { tab, match }. Reads the tab, finds the FIRST row matching every field in `match`, and deletes it via Sheets batchUpdate deleteDimension. 400 if no row matches — nothing is deleted.\n\nTransactions match on all 7 fields; Goals on goal_name; Assets on asset_name.",
+        "content": "## Record Remover (Workflow 8)\nPOST /finance-delete { tab, match }. Deletes the lowest-id row in the matching Postgres table where every field in `match` is equal. 400 if no row matches — nothing is deleted.\n\nTransactions match on all 7 fields; Goals on goal_name; Assets on asset_name.",
         "height": 240,
         "width": 540,
         "color": 4
@@ -54,60 +54,37 @@
       }
     },
     {
-      "id": "http1",
-      "name": "Get Sheet Meta",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "codesql1",
+      "name": "Build Delete SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         440,
         0
       ],
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
-        "options": {},
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI?fields=sheets.properties"
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "eo7uMjjFUzvjTAGi",
-          "name": "Google Sheets account"
-        }
+        "jsCode": "const TABLE_MAP = { Transactions: 'transactions', Goals: 'goals', Assets: 'assets', Categories: 'categories', Budgets: 'budgets', Accounts: 'accounts', Bills: 'bills' };\nconst tab = $json.tab;\nconst match = $json.match || {};\nconst table = TABLE_MAP[tab];\nconst escText = (v) => \"'\" + String(v == null ? '' : v).replace(/'/g, \"''\") + \"'\";\nconst keys = Object.keys(match);\nif (!table) {\n  return [{ json: { query: 'SELECT 0 AS deleted_count;', error: 'tab not found: ' + tab } }];\n}\nif (keys.length === 0) {\n  return [{ json: { query: 'SELECT 0 AS deleted_count;', error: 'no match fields provided' } }];\n}\nconst where = keys.map(function (k) {\n  const v = match[k];\n  if (k === 'amount') return 'amount = ' + Number(v);\n  return k + ' = ' + escText(v);\n}).join(' AND ');\nconst query = 'WITH deleted AS (DELETE FROM ' + table + ' WHERE id = (SELECT id FROM ' + table + ' WHERE ' + where + ' ORDER BY id ASC LIMIT 1) RETURNING id) SELECT COUNT(*) AS deleted_count FROM deleted;';\nreturn [{ json: { query, error: 'row not found' } }];"
       }
     },
     {
-      "id": "http2",
-      "name": "Read Tab",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "pg1",
+      "name": "Run Delete",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
         660,
         0
       ],
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
-        "options": {},
-        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/' + encodeURIComponent($('Prep Delete').first().json.tab) + '?valueRenderOption=UNFORMATTED_VALUE' }}"
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "eo7uMjjFUzvjTAGi",
-          "name": "Google Sheets account"
+        "postgres": {
+          "id": "NVJk0SsDUL8En4zV",
+          "name": "Postgres account"
         }
-      }
-    },
-    {
-      "id": "code1",
-      "name": "Find Row",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        880,
-        0
-      ],
-      "parameters": {
-        "jsCode": "const prep = $('Prep Delete').first().json;\nconst tab = prep.tab;\nconst match = prep.match || {};\nconst meta = $('Get Sheet Meta').first().json;\nconst sheet = (meta.sheets || []).find(function (s) { return s.properties.title === tab; });\nif (!sheet) return [{ json: { found: false, error: 'tab not found: ' + tab } }];\nconst sheetId = sheet.properties.sheetId;\nconst values = ($('Read Tab').first().json.values) || [];\nif (values.length < 2) return [{ json: { found: false, error: 'no data rows in ' + tab } }];\nfunction toISO(d){ if (typeof d === 'number') return new Date(Math.round((d-25569)*86400000)).toISOString().slice(0,10); return String(d).slice(0,10); }\nconst head = values[0];\nlet foundIndex = -1;\nfor (let i = 1; i < values.length; i++) {\n  const o = {};\n  head.forEach(function (h, j) { o[h] = values[i][j] === undefined ? '' : values[i][j]; });\n  let ok = true;\n  for (const k of Object.keys(match)) {\n    let a = o[k]; let b = match[k];\n    if (k === 'amount') { a = Number(a); b = Number(b); }\n    else if (k === 'date') { a = toISO(a); b = toISO(b); }\n    else { a = String(a == null ? '' : a); b = String(b == null ? '' : b); }\n    if (String(a) !== String(b)) { ok = false; break; }\n  }\n  if (ok) { foundIndex = i; break; }\n}\nif (foundIndex === -1) return [{ json: { found: false, error: 'row not found' } }];\nreturn [{ json: { found: true, body: { requests: [{ deleteDimension: { range: {\n  sheetId: sheetId, dimension: 'ROWS', startIndex: foundIndex, endIndex: foundIndex + 1\n} } }] } } }];"
       }
     },
     {
@@ -116,7 +93,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1100,
+        880,
         0
       ],
       "parameters": {
@@ -129,7 +106,7 @@
           "conditions": [
             {
               "id": "c1",
-              "leftValue": "={{ $json.found }}",
+              "leftValue": "={{ Number($json.deleted_count) > 0 }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -144,38 +121,12 @@
       }
     },
     {
-      "id": "http3",
-      "name": "Delete Row",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1320,
-        -120
-      ],
-      "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleSheetsOAuth2Api",
-        "options": {},
-        "method": "POST",
-        "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI:batchUpdate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.body) }}"
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "eo7uMjjFUzvjTAGi",
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
       "id": "resp1",
       "name": "Respond Deleted",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1540,
+        1100,
         -120
       ],
       "parameters": {
@@ -190,12 +141,12 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1320,
+        1100,
         120
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $(\"Build Delete SQL\").first().json.error }) }}",
         "options": {
           "responseCode": 400
         }
@@ -218,36 +169,25 @@
       "main": [
         [
           {
-            "node": "Get Sheet Meta",
+            "node": "Build Delete SQL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Sheet Meta": {
+    "Build Delete SQL": {
       "main": [
         [
           {
-            "node": "Read Tab",
+            "node": "Run Delete",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read Tab": {
-      "main": [
-        [
-          {
-            "node": "Find Row",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Find Row": {
+    "Run Delete": {
       "main": [
         [
           {
@@ -262,7 +202,7 @@
       "main": [
         [
           {
-            "node": "Delete Row",
+            "node": "Respond Deleted",
             "type": "main",
             "index": 0
           }
@@ -270,17 +210,6 @@
         [
           {
             "node": "Respond Not Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete Row": {
-      "main": [
-        [
-          {
-            "node": "Respond Deleted",
             "type": "main",
             "index": 0
           }
@@ -298,9 +227,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
-  "activeVersionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
-  "versionCounter": 3,
+  "versionId": "567f92bf-cb4e-4cac-b622-91459b913005",
+  "activeVersionId": "567f92bf-cb4e-4cac-b622-91459b913005",
+  "versionCounter": 9,
   "triggerCount": 1,
   "shared": [
     {
@@ -323,9 +252,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-06-13T07:31:27.705Z",
-    "createdAt": "2026-06-13T07:31:27.705Z",
-    "versionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
+    "updatedAt": "2026-06-26T10:44:00.471Z",
+    "createdAt": "2026-06-26T10:44:00.471Z",
+    "versionId": "567f92bf-cb4e-4cac-b622-91459b913005",
     "workflowId": "XBpyHnVzjOHulNje",
     "nodes": [
       {
@@ -338,7 +267,7 @@
           -260
         ],
         "parameters": {
-          "content": "## Record Remover (Workflow 8)\nPOST /finance-delete { tab, match }. Reads the tab, finds the FIRST row matching every field in `match`, and deletes it via Sheets batchUpdate deleteDimension. 400 if no row matches — nothing is deleted.\n\nTransactions match on all 7 fields; Goals on goal_name; Assets on asset_name.",
+          "content": "## Record Remover (Workflow 8)\nPOST /finance-delete { tab, match }. Deletes the lowest-id row in the matching Postgres table where every field in `match` is equal. 400 if no row matches — nothing is deleted.\n\nTransactions match on all 7 fields; Goals on goal_name; Assets on asset_name.",
           "height": 240,
           "width": 540,
           "color": 4
@@ -375,60 +304,37 @@
         }
       },
       {
-        "id": "http1",
-        "name": "Get Sheet Meta",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
+        "id": "codesql1",
+        "name": "Build Delete SQL",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
         "position": [
           440,
           0
         ],
         "parameters": {
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googleSheetsOAuth2Api",
-          "options": {},
-          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI?fields=sheets.properties"
-        },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "eo7uMjjFUzvjTAGi",
-            "name": "Google Sheets account"
-          }
+          "jsCode": "const TABLE_MAP = { Transactions: 'transactions', Goals: 'goals', Assets: 'assets', Categories: 'categories', Budgets: 'budgets', Accounts: 'accounts', Bills: 'bills' };\nconst tab = $json.tab;\nconst match = $json.match || {};\nconst table = TABLE_MAP[tab];\nconst escText = (v) => \"'\" + String(v == null ? '' : v).replace(/'/g, \"''\") + \"'\";\nconst keys = Object.keys(match);\nif (!table) {\n  return [{ json: { query: 'SELECT 0 AS deleted_count;', error: 'tab not found: ' + tab } }];\n}\nif (keys.length === 0) {\n  return [{ json: { query: 'SELECT 0 AS deleted_count;', error: 'no match fields provided' } }];\n}\nconst where = keys.map(function (k) {\n  const v = match[k];\n  if (k === 'amount') return 'amount = ' + Number(v);\n  return k + ' = ' + escText(v);\n}).join(' AND ');\nconst query = 'WITH deleted AS (DELETE FROM ' + table + ' WHERE id = (SELECT id FROM ' + table + ' WHERE ' + where + ' ORDER BY id ASC LIMIT 1) RETURNING id) SELECT COUNT(*) AS deleted_count FROM deleted;';\nreturn [{ json: { query, error: 'row not found' } }];"
         }
       },
       {
-        "id": "http2",
-        "name": "Read Tab",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
+        "id": "pg1",
+        "name": "Run Delete",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
         "position": [
           660,
           0
         ],
         "parameters": {
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googleSheetsOAuth2Api",
-          "options": {},
-          "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI/values/' + encodeURIComponent($('Prep Delete').first().json.tab) + '?valueRenderOption=UNFORMATTED_VALUE' }}"
+          "operation": "executeQuery",
+          "query": "={{ $json.query }}",
+          "options": {}
         },
         "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "eo7uMjjFUzvjTAGi",
-            "name": "Google Sheets account"
+          "postgres": {
+            "id": "NVJk0SsDUL8En4zV",
+            "name": "Postgres account"
           }
-        }
-      },
-      {
-        "id": "code1",
-        "name": "Find Row",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          880,
-          0
-        ],
-        "parameters": {
-          "jsCode": "const prep = $('Prep Delete').first().json;\nconst tab = prep.tab;\nconst match = prep.match || {};\nconst meta = $('Get Sheet Meta').first().json;\nconst sheet = (meta.sheets || []).find(function (s) { return s.properties.title === tab; });\nif (!sheet) return [{ json: { found: false, error: 'tab not found: ' + tab } }];\nconst sheetId = sheet.properties.sheetId;\nconst values = ($('Read Tab').first().json.values) || [];\nif (values.length < 2) return [{ json: { found: false, error: 'no data rows in ' + tab } }];\nfunction toISO(d){ if (typeof d === 'number') return new Date(Math.round((d-25569)*86400000)).toISOString().slice(0,10); return String(d).slice(0,10); }\nconst head = values[0];\nlet foundIndex = -1;\nfor (let i = 1; i < values.length; i++) {\n  const o = {};\n  head.forEach(function (h, j) { o[h] = values[i][j] === undefined ? '' : values[i][j]; });\n  let ok = true;\n  for (const k of Object.keys(match)) {\n    let a = o[k]; let b = match[k];\n    if (k === 'amount') { a = Number(a); b = Number(b); }\n    else if (k === 'date') { a = toISO(a); b = toISO(b); }\n    else { a = String(a == null ? '' : a); b = String(b == null ? '' : b); }\n    if (String(a) !== String(b)) { ok = false; break; }\n  }\n  if (ok) { foundIndex = i; break; }\n}\nif (foundIndex === -1) return [{ json: { found: false, error: 'row not found' } }];\nreturn [{ json: { found: true, body: { requests: [{ deleteDimension: { range: {\n  sheetId: sheetId, dimension: 'ROWS', startIndex: foundIndex, endIndex: foundIndex + 1\n} } }] } } }];"
         }
       },
       {
@@ -437,7 +343,7 @@
         "type": "n8n-nodes-base.if",
         "typeVersion": 2,
         "position": [
-          1100,
+          880,
           0
         ],
         "parameters": {
@@ -450,7 +356,7 @@
             "conditions": [
               {
                 "id": "c1",
-                "leftValue": "={{ $json.found }}",
+                "leftValue": "={{ Number($json.deleted_count) > 0 }}",
                 "rightValue": "",
                 "operator": {
                   "type": "boolean",
@@ -465,38 +371,12 @@
         }
       },
       {
-        "id": "http3",
-        "name": "Delete Row",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [
-          1320,
-          -120
-        ],
-        "parameters": {
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googleSheetsOAuth2Api",
-          "options": {},
-          "method": "POST",
-          "url": "https://sheets.googleapis.com/v4/spreadsheets/16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI:batchUpdate",
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={{ JSON.stringify($json.body) }}"
-        },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "eo7uMjjFUzvjTAGi",
-            "name": "Google Sheets account"
-          }
-        }
-      },
-      {
         "id": "resp1",
         "name": "Respond Deleted",
         "type": "n8n-nodes-base.respondToWebhook",
         "typeVersion": 1.1,
         "position": [
-          1540,
+          1100,
           -120
         ],
         "parameters": {
@@ -511,12 +391,12 @@
         "type": "n8n-nodes-base.respondToWebhook",
         "typeVersion": 1.1,
         "position": [
-          1320,
+          1100,
           120
         ],
         "parameters": {
           "respondWith": "json",
-          "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+          "responseBody": "={{ JSON.stringify({ success: false, error: $(\"Build Delete SQL\").first().json.error }) }}",
           "options": {
             "responseCode": 400
           }
@@ -539,36 +419,25 @@
         "main": [
           [
             {
-              "node": "Get Sheet Meta",
+              "node": "Build Delete SQL",
               "type": "main",
               "index": 0
             }
           ]
         ]
       },
-      "Get Sheet Meta": {
+      "Build Delete SQL": {
         "main": [
           [
             {
-              "node": "Read Tab",
+              "node": "Run Delete",
               "type": "main",
               "index": 0
             }
           ]
         ]
       },
-      "Read Tab": {
-        "main": [
-          [
-            {
-              "node": "Find Row",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Find Row": {
+      "Run Delete": {
         "main": [
           [
             {
@@ -583,7 +452,7 @@
         "main": [
           [
             {
-              "node": "Delete Row",
+              "node": "Respond Deleted",
               "type": "main",
               "index": 0
             }
@@ -591,17 +460,6 @@
           [
             {
               "node": "Respond Not Found",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Delete Row": {
-        "main": [
-          [
-            {
-              "node": "Respond Deleted",
               "type": "main",
               "index": 0
             }
@@ -615,11 +473,19 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-06-13T07:31:27.830Z",
-        "id": 521,
+        "createdAt": "2026-06-26T10:44:00.510Z",
+        "id": 563,
         "workflowId": "XBpyHnVzjOHulNje",
-        "versionId": "54aaa716-182a-4478-a32d-9cde527b73ae",
+        "versionId": "567f92bf-cb4e-4cac-b622-91459b913005",
         "event": "activated",
+        "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
+      },
+      {
+        "createdAt": "2026-06-26T10:44:00.497Z",
+        "id": 562,
+        "workflowId": "XBpyHnVzjOHulNje",
+        "versionId": "567f92bf-cb4e-4cac-b622-91459b913005",
+        "event": "deactivated",
         "userId": "343e1b02-4250-4b65-a3f2-a5e05d163551"
       }
     ]

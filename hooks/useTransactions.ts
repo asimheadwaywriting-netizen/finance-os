@@ -3,7 +3,7 @@ import { mutate } from 'swr'
 import type { DashboardData, Transaction } from '@/lib/types'
 
 const EMPTY_DASHBOARD: DashboardData = {
-  metrics: { income: 0, expenses: 0, net: 0, safeToSpend: 0, daysLeftInMonth: 30, accountsStartingTotal: 0 },
+  metrics: { income: 0, expenses: 0, net: 0, safeToSpend: 0, daysLeftInMonth: 30, accountsStartingTotal: 0, billsCommitted: 0, billsUnpaid: 0 },
   accountBalances: [],
   goals: [],
   assets: [],
@@ -13,6 +13,7 @@ const EMPTY_DASHBOARD: DashboardData = {
   dailyTrend: [],
   categories: [],
   budgets: [],
+  bills: [],
 }
 
 const isDemo = () => process.env.NEXT_PUBLIC_DEMO_MODE === 'true'

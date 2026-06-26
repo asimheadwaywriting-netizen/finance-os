@@ -25,6 +25,9 @@ import AssetForm from '@/components/assets/AssetForm'
 import CategoryForm from '@/components/categories/CategoryForm'
 import AccountForm from '@/components/accounts/AccountForm'
 import BudgetForm from '@/components/budgets/BudgetForm'
+import BillForm from '@/components/bills/BillForm'
+import BillsList from '@/components/bills/BillsList'
+import { useBills } from '@/hooks/useBills'
 import { BUDGET_WARNING_THRESHOLD } from '@/lib/constants'
 import { Skeleton } from '@/components/ui/skeleton'
 import ChatPanel from '@/components/chat/ChatPanel'
@@ -45,6 +48,7 @@ export default function Home() {
   const { addCategory, isSubmitting: isCategorySubmitting } = useCategories()
   const { addAccount, isSubmitting: isAccountSubmitting } = useAccounts()
   const { addBudget, removeBudget, isSubmitting: isBudgetSubmitting } = useBudgets()
+  const { addBill, removeBill, markPaid, unmarkPaid, isSubmitting: isBillSubmitting } = useBills()
 
   // Add-form toggles + pending goal deletion (asset/transaction deletes are local
   // to their list components).
@@ -57,6 +61,9 @@ export default function Home() {
   const [removingGoal, setRemovingGoal] = useState(false)
   const [pendingBudgetDelete, setPendingBudgetDelete] = useState<string | null>(null)
   const [removingBudget, setRemovingBudget] = useState(false)
+  const [showBillForm, setShowBillForm] = useState(false)
+  const [pendingBillDelete, setPendingBillDelete] = useState<string | null>(null)
+  const [removingBill, setRemovingBill] = useState(false)
 
   // Category → color map from live data, merged over the static palette fallback.
   const categoryColors = useMemo(() => {
@@ -88,6 +95,19 @@ export default function Home() {
       // error surfaced by the hook; keep the dialog open
     } finally {
       setRemovingBudget(false)
+    }
+  }
+
+  const confirmBillDelete = async () => {
+    if (!pendingBillDelete) return
+    setRemovingBill(true)
+    try {
+      await removeBill(pendingBillDelete)
+      setPendingBillDelete(null)
+    } catch {
+      // error surfaced by the hook; keep the dialog open
+    } finally {
+      setRemovingBill(false)
     }
   }
 
@@ -584,11 +604,48 @@ export default function Home() {
     const availableCats = data.categories
       .filter((c) => c.type === 'Expense' && !budgetedCats.has(c.name))
       .map((c) => c.name)
+    const expenseCats = data.categories.filter((c) => c.type === 'Expense').map((c) => c.name)
+    const accountNames = data.accountBalances.map((a) => a.name)
 
     return (
       <div className="space-y-6">
         {error && <ErrorBanner message={error.message} onRetry={mutate} />}
 
+        {/* Recurring bills — fixed monthly obligations */}
+        <div className="flex justify-end">
+          {!showBillForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 text-gray-300"
+              onClick={() => setShowBillForm(true)}
+            >
+              <Plus /> Add Bill
+            </Button>
+          )}
+        </div>
+
+        {showBillForm && (
+          <BillForm
+            onSubmit={async (b) => { await addBill(b) }}
+            onCancel={() => setShowBillForm(false)}
+            isSubmitting={isBillSubmitting}
+            categories={expenseCats}
+            accounts={accountNames}
+          />
+        )}
+
+        <BillsList
+          bills={data.bills}
+          committed={data.metrics.billsCommitted}
+          unpaid={data.metrics.billsUnpaid}
+          onMarkPaid={markPaid}
+          onUnmark={unmarkPaid}
+          onDelete={(name) => setPendingBillDelete(name)}
+          categoryColors={categoryColors}
+        />
+
+        {/* Per-category budget caps */}
         <div className="flex justify-end">
           {!showBudgetForm && (
             <Button
@@ -678,6 +735,15 @@ export default function Home() {
           loading={removingBudget}
           onConfirm={confirmBudgetDelete}
           onCancel={() => setPendingBudgetDelete(null)}
+        />
+
+        <ConfirmDialog
+          open={pendingBillDelete !== null}
+          title="Remove bill?"
+          description={pendingBillDelete ? `The bill "${pendingBillDelete}" will be removed. Any payments already logged stay in your transactions.` : ''}
+          loading={removingBill}
+          onConfirm={confirmBillDelete}
+          onCancel={() => setPendingBillDelete(null)}
         />
       </div>
     )
