@@ -202,9 +202,11 @@ export default function Home() {
         )}
 
         {/* Top Prominent Safe To Spend */}
-        <SafeToSpendCard 
-          safeToSpend={data.metrics.safeToSpend} 
-          daysLeft={data.metrics.daysLeftInMonth} 
+        <SafeToSpendCard
+          safeToSpend={data.metrics.safeToSpend}
+          weeklySafeToSpend={data.metrics.weeklySafeToSpend}
+          billsUnpaid={data.metrics.billsUnpaid}
+          daysLeft={data.metrics.daysLeftInMonth}
           loading={false}
         />
 

@@ -8,12 +8,16 @@ import { CalendarDays, AlertCircle } from 'lucide-react'
 
 export interface SafeToSpendCardProps {
   safeToSpend?: number
+  weeklySafeToSpend?: number
+  billsUnpaid?: number
   daysLeft?: number
   loading?: boolean
 }
 
 export default function SafeToSpendCard({
   safeToSpend,
+  weeklySafeToSpend,
+  billsUnpaid = 0,
   daysLeft,
   loading = false
 }: SafeToSpendCardProps) {
@@ -55,14 +59,25 @@ export default function SafeToSpendCard({
             <h3 className="text-4xl sm:text-5xl font-bold font-mono tracking-tight text-white">
               {formatCurrency(safeToSpend)}
             </h3>
+            {weeklySafeToSpend !== undefined && (
+              <p className="text-sm text-gray-300 font-mono">
+                ≈ <strong className="text-white">{formatCurrency(weeklySafeToSpend)}</strong> <span className="text-gray-500">/ week</span>
+              </p>
+            )}
           </div>
-          
+
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <CalendarDays className="w-4 h-4 text-brand-income" />
             <span>
               <strong className="text-white font-mono">{daysLeft}</strong> {daysLeft === 1 ? 'day' : 'days'} remaining in this billing cycle
             </span>
           </div>
+
+          {billsUnpaid > 0 && (
+            <p className="text-xs text-gray-500">
+              After reserving <span className="text-brand-warning font-mono">{formatCurrency(billsUnpaid)}</span> for unpaid bills.
+            </p>
+          )}
 
           {(isWarning || isCritical) && (
             <div className="flex items-center gap-2 text-xs bg-brand-warning/10 border border-brand-warning/20 text-brand-warning px-3 py-1.5 rounded-lg max-w-sm">

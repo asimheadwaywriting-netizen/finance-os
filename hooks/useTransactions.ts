@@ -3,7 +3,7 @@ import { mutate } from 'swr'
 import type { DashboardData, Transaction } from '@/lib/types'
 
 const EMPTY_DASHBOARD: DashboardData = {
-  metrics: { income: 0, expenses: 0, net: 0, safeToSpend: 0, daysLeftInMonth: 30, accountsStartingTotal: 0, billsCommitted: 0, billsUnpaid: 0 },
+  metrics: { income: 0, expenses: 0, net: 0, safeToSpend: 0, weeklySafeToSpend: 0, daysLeftInMonth: 30, accountsStartingTotal: 0, billsCommitted: 0, billsUnpaid: 0 },
   accountBalances: [],
   goals: [],
   assets: [],
@@ -66,7 +66,10 @@ function buildUpdater(tx: Transaction, direction: 1 | -1) {
       } else {
         newMetrics.expenses += direction * amount
         newMetrics.net -= direction * amount
-        newMetrics.safeToSpend -= direction * amount
+        // A bill payment was already reserved as an unpaid bill in safeToSpend, so paying
+        // it leaves safeToSpend unchanged (balance down, billsUnpaid down — they cancel).
+        // ponytail: exact value comes from the next revalidate; this just avoids a flicker.
+        if (!(tx.note || '').startsWith('bill:')) newMetrics.safeToSpend -= direction * amount
 
         const idx = newSpending.findIndex((c) => c.category === tx.category)
         if (idx > -1) {

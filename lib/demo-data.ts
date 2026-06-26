@@ -76,9 +76,8 @@ export function getDemoDashboard(): DashboardData {
   // Demo "money added to accounts" ≈ current balances + what's been spent.
   const totalBalance = base.accountBalances.reduce((s, a) => s + a.balance, 0)
   const accountsStartingTotal = totalBalance + base.metrics.expenses
-  // Safe to spend = current balances − money set aside for goals (floored at 0).
+  // Safe to spend = current balances − money set aside for goals − UNPAID bills (floored at 0).
   const goalContrib = base.goals.reduce((s, g) => s + (g.contribution || 0), 0)
-  const safeToSpend = Math.max(0, totalBalance - goalContrib)
 
   // A couple of sample budgets, with spent pulled from the demo's category spending.
   const spentFor = (cat: string) =>
@@ -113,9 +112,13 @@ export function getDemoDashboard(): DashboardData {
   const billsCommitted = bills.reduce((s, b) => s + b.amount, 0)
   const billsUnpaid = bills.reduce((s, b) => s + (b.paid ? 0 : b.amount), 0)
 
+  const safeToSpend = Math.max(0, totalBalance - goalContrib - billsUnpaid)
+  const daysLeft = daysLeftInMonth()
+  const weeklySafeToSpend = Math.round(safeToSpend / Math.max(1, Math.ceil(daysLeft / 7)))
+
   return {
     ...base,
-    metrics: { ...base.metrics, daysLeftInMonth: daysLeftInMonth(), accountsStartingTotal, safeToSpend, billsCommitted, billsUnpaid },
+    metrics: { ...base.metrics, daysLeftInMonth: daysLeft, accountsStartingTotal, safeToSpend, weeklySafeToSpend, billsCommitted, billsUnpaid },
     assets,
     categories: demoCategories,
     dailyTrend: buildDailyTrend(),

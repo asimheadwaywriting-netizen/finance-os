@@ -7,6 +7,8 @@ export interface DashboardData {
     expenses: number
     net: number
     safeToSpend: number
+    /** safeToSpend spread over the weeks left in the month (>= 1 week). */
+    weeklySafeToSpend: number
     daysLeftInMonth: number
     /** Sum of all account starting balances = money added to accounts ("Total Income So Far"). */
     accountsStartingTotal: number
