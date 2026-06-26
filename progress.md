@@ -2,14 +2,16 @@
 
 Quick state-of-the-project file. Full task lists live in `MILESTONES.md`; this is the running log of what's actually live.
 
-## Current State (2026-06-20)
+## Current State (2026-06-26)
 
-**Progress: 100% — LAUNCHED, now on Postgres · Latest milestone: M12 (Postgres migration)**
+**Progress: 100% — LAUNCHED · Dashboard read path on direct Postgres (fast); writes + AI chat on n8n**
 
 | What | Status |
 |------|--------|
 | Live dashboard | https://finance-os-eight-delta.vercel.app/ |
-| Data store | Postgres (Neon free tier) — 5 accounts, 18 categories, 1 goal, 0 assets, 58 transactions, 0 budgets |
+| Dashboard reads | DIRECT from Postgres via `APP_DATABASE_URL` (~290–580ms). Falls back to n8n WF1 if unset. NOT the integration `DATABASE_URL` (stale branch — see fast-path note) |
+| Writes + AI chat | still via n8n (WF2/WF8/WF9 + WF3). Migrating writes judged NOT worth it (optimistic UI already feels instant; higher-risk path; AI chat also writes) |
+| Data store | Postgres (Neon), host `ep-divine-breeze-ahxsr4x7` |
 | Old Google Sheet | `Finance OS` — ID `16vNm0PPxV-OP1Kp_INOKiBz33YcL-ZkowAyRw7HnwcI` — kept as inert backup, not read from |
 | n8n Workflow 1 | `finance-data-aggregator` (ID `8GejOtDtsht0CfEJ`) — ACTIVE, Postgres-backed |
 | Live webhook | `GET https://asim.sg-node8n.serverdoor.com/webhook/finance-dashboard` → `DashboardData` JSON |
@@ -113,6 +115,36 @@ Added a full recurring-bills tracker inside the Budget tab (rent, utilities, sub
 - **Frontend:** `lib/types.ts` (Bill + metrics), `hooks/useBills.ts` (add/remove/markPaid/unmarkPaid, composes `useTransactions`, demo-safe optimistic), `app/api/bills/route.ts` (proxy), `components/bills/BillForm.tsx` + `BillsList.tsx`, Bills section in `renderBudgetView`, sample bills in `lib/demo-data.ts`.
 - **Out of scope (deferred):** Safe-to-Spend formula still `cash − goals` (bills not yet subtracted); no bill email reminders (the scheduled email workflows were archived this same session).
 - **Verified:** clean `npm run build`; backend create→mark-paid(paid=true, unpaid→0)→delete via webhooks; full path via Next.js `/api/bills` on a prod server (create, invalid→400, delete). **Note: `N8N_CREATE_WEBHOOK_URL` + `N8N_DELETE_WEBHOOK_URL` are already in Vercel (shared with budgets), so no new env vars needed.**
+
+## Safe-to-Spend v2 — DONE (2026-06-26)
+
+Made Safe-to-Spend honest about committed money + added a weekly figure.
+- Formula: `safeToSpend = account cash − monthly goal contributions − UNPAID bills`
+  (paid bills already left the balance, so only unpaid are subtracted — no double count).
+- `weeklySafeToSpend = safeToSpend / weeks left in month` (>= 1). Shown on the card as
+  "≈ ₿X / week" + an "after reserving ₿Y for unpaid bills" caption.
+- Computed in WF1 (`n8n/deploy-safe-to-spend.js`) and `lib/dashboard.ts`; the optimistic
+  tx updater skips the safeToSpend delta for `bill:` transactions (already reserved).
+- Verified live: adding an unpaid bill drops StS by its amount; marking it paid leaves StS
+  unchanged (no double count).
+
+## UI: collapsible sections + theme — DONE (2026-06-26)
+
+- **Collapsible Assets & Transactions** (`components/ui/collapsible-section.tsx`): chevron
+  header, localStorage-persisted, **default collapsed** on the dashboard (Asim rarely uses
+  them). Reuses each component's `title=""` guard to avoid double headers.
+- **Theme (font + colours only, no layout change):** main font Geist → **Plus Jakarta Sans**
+  (kept `--font-geist-sans` var name); accent blue `#3b82f6` → brighter cobalt **`#2f6bff`**
+  across `--primary`, `--ring`, `brand.income`, `COLORS.income`. Semantic
+  expense/warning/success colours left untouched.
+
+## June duplicate cleanup — DONE (2026-06-26)
+
+Marking a bill paid logs an expense; Asim had also logged some of those manually → double
+counted. Removed 4 confirmed duplicates via direct SQL (Nurse ₿4k, Service Charge D orphan
+₿6k, two Service Charge manuals ₿6k + ₿10k) = **−₿26,000**. Total Expense So Far
+₿1,31,648 → ₿1,05,648. Kept real items (e.g. Bua ₿6k salary). Led to the duplicate-warning
+flag (below).
 
 ## n8n → app migration — read path DONE (2026-06-26)
 
