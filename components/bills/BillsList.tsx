@@ -110,8 +110,18 @@ export default function BillsList({
                       >
                         {bill.category}
                       </span>
+                      {!bill.paid && bill.possibleDuplicate && (
+                        <span className="inline-flex items-center gap-1 border border-brand-warning/30 bg-brand-warning/10 text-brand-warning font-normal text-[10px] py-0.5 px-1.5 rounded">
+                          <AlertTriangle className="h-3 w-3" /> possible duplicate
+                        </span>
+                      )}
                     </div>
                     <div className={cn('text-[11px] font-mono', statusColor)}>{statusText}</div>
+                    {!bill.paid && bill.possibleDuplicate && (
+                      <div className="text-[10px] text-brand-warning">
+                        You already logged a ৳{bill.amount.toLocaleString('en-IN')} expense this month — don&apos;t mark paid if it&apos;s the same one.
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex-shrink-0 text-right font-mono text-sm text-gray-100">

@@ -173,23 +173,31 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   // Bills: paid = a current-month Expense tagged `bill:<name>`.
   const paidBillNames: Record<string, boolean> = {}
+  // Amounts of this month's MANUAL (non-bill) expenses — used to warn about possible
+  // double-entry when an unpaid bill matches one.
+  const manualExpenseAmounts = new Set<number>()
   curr.forEach((t) => {
-    if (t.type === 'Expense' && t.note && t.note.indexOf('bill:') === 0) paidBillNames[t.note.slice(5)] = true
+    if (t.type !== 'Expense') return
+    if (t.note && t.note.indexOf('bill:') === 0) paidBillNames[t.note.slice(5)] = true
+    else manualExpenseAmounts.add(t.amount)
   })
   const bills = (r.bills || []).map((b) => {
     const name = String(b.name || '')
+    const amount = Number(b.amount) || 0
     const dueDay = Math.min(Math.max(parseInt(String(b.due_day), 10) || 1, 1), daysInMonth)
     const dueDate = `${ym}-${String(dueDay).padStart(2, '0')}`
     const dueUTC = Date.UTC(Y, M, dueDay)
+    const paid = !!paidBillNames[name]
     return {
       name,
-      amount: Number(b.amount) || 0,
+      amount,
       dueDay,
       category: String(b.category || ''),
       account: String(b.account || ''),
-      paid: !!paidBillNames[name],
+      paid,
       dueDate,
       daysToDue: Math.ceil((dueUTC - todayMidnight) / MS_DAY),
+      possibleDuplicate: !paid && manualExpenseAmounts.has(amount),
     }
   })
   const billsCommitted = bills.reduce((s, b) => s + b.amount, 0)

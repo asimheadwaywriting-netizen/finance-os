@@ -131,6 +131,23 @@ frontend already calls `/api/*`, so only the route internals change.
 - WF1 left active as the fallback. Next routes to migrate: transactions, bills, budgets,
   goals, assets, categories (create/delete) → then WF2/8/9 can be retired. AI stays on n8n.
 
+## Bills duplicate-warning flag — DONE (2026-06-26)
+
+Prevents the double-entry that inflated June expenses (a bill marked paid logs an
+expense; logging it manually too = counted twice). Each bill now gets
+`possibleDuplicate` = true when it's UNPAID and a current-month MANUAL (non-bill)
+expense of the same amount already exists. Shown as an amber "⚠ possible duplicate"
+chip + hint on the bill row, so you catch it before marking paid.
+
+- Computed in BOTH WF1 (`n8n/deploy-dup-flag.js`, the path prod uses) and
+  `lib/dashboard.ts` (direct path), so it works regardless of backend. Field is
+  optional in the type.
+- Heuristic: amount-match among unpaid bills only (soft warning, not a block).
+- Verified live on the n8n path: ₿9,500 unpaid bill matching a manual expense →
+  flagged true; ₿7 with no match → false. Temp bills cleaned up.
+- Note: the earlier June duplicates were also manually cleaned (−₿26,000), bringing
+  Total Expense from ₿1,31,648 to ₿1,05,648.
+
 ## Demo Deployment — IN PROGRESS (2026-06-13)
 
 - New `lib/demo-data.ts` + `NEXT_PUBLIC_DEMO_MODE` flag gate `/api/dashboard`, `/api/transactions`, `/api/chat` and `useTransactions` to serve self-contained sample data, canned chat replies, and no-persist transactions — documented in CLAUDE.md.
