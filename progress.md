@@ -114,6 +114,23 @@ Added a full recurring-bills tracker inside the Budget tab (rent, utilities, sub
 - **Out of scope (deferred):** Safe-to-Spend formula still `cash − goals` (bills not yet subtracted); no bill email reminders (the scheduled email workflows were archived this same session).
 - **Verified:** clean `npm run build`; backend create→mark-paid(paid=true, unpaid→0)→delete via webhooks; full path via Next.js `/api/bills` on a prod server (create, invalid→400, delete). **Note: `N8N_CREATE_WEBHOOK_URL` + `N8N_DELETE_WEBHOOK_URL` are already in Vercel (shared with budgets), so no new env vars needed.**
 
+## n8n → app migration — read path DONE (2026-06-26)
+
+Moving core data logic out of n8n into the Next.js app (talking straight to Neon),
+keeping only the AI assistant (WF3) on n8n. Incremental, one route at a time — the
+frontend already calls `/api/*`, so only the route internals change.
+
+- **Read path (`/api/dashboard`) migrated.** `lib/dashboard.ts` is a faithful TS port of
+  WF1's single `json_agg` query + compute (Dhaka tz via fixed UTC+6, bills, safe-to-spend v2).
+  Uses `@neondatabase/serverless` (HTTP driver — correct for Vercel serverless; no TCP pool).
+- **Route prefers direct DB when `DATABASE_URL` is set, else falls back to the n8n webhook** —
+  no flag day. `DATABASE_URL` is in `.env.local` (gitignored); **must be added to Vercel
+  Production** for prod to use the fast path (until then prod keeps using n8n WF1).
+- **Verified:** parity test (local prod server) — direct route output is **field-for-field
+  identical** to the live n8n webhook. Latency: **direct ~9ms vs n8n ~2.6s**.
+- WF1 left active as the fallback. Next routes to migrate: transactions, bills, budgets,
+  goals, assets, categories (create/delete) → then WF2/8/9 can be retired. AI stays on n8n.
+
 ## Demo Deployment — IN PROGRESS (2026-06-13)
 
 - New `lib/demo-data.ts` + `NEXT_PUBLIC_DEMO_MODE` flag gate `/api/dashboard`, `/api/transactions`, `/api/chat` and `useTransactions` to serve self-contained sample data, canned chat replies, and no-persist transactions — documented in CLAUDE.md.

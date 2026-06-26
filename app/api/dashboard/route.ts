@@ -1,19 +1,32 @@
 import { NextResponse } from 'next/server'
 import type { DashboardData } from '@/lib/types'
 import { getDemoDashboard } from '@/lib/demo-data'
+import { getDashboardData } from '@/lib/dashboard'
 
-// Proxy to n8n Workflow 1 (finance-data-aggregator). The webhook URL lives in
-// env vars only (Vercel dashboard / .env.local) — never in client-side code.
+// Dashboard read path. Prefers a direct Postgres query (DATABASE_URL set) — one
+// hop, no n8n. Falls back to the n8n webhook when DATABASE_URL is absent, so the
+// migration can be rolled out without a flag day.
 export const dynamic = 'force-dynamic'
 
 const TIMEOUT_MS = 10_000
 
 export async function GET() {
-  // Demo deployment: serve self-contained sample data, never touch n8n.
+  // Demo deployment: serve self-contained sample data, never touch the DB/n8n.
   if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
     return NextResponse.json(getDemoDashboard())
   }
 
+  // Preferred path: direct from Postgres.
+  if (process.env.DATABASE_URL) {
+    try {
+      return NextResponse.json(await getDashboardData())
+    } catch (err) {
+      console.error('[api/dashboard] direct DB query failed:', err)
+      return NextResponse.json({ error: 'Dashboard data unavailable' }, { status: 503 })
+    }
+  }
+
+  // Fallback: n8n Workflow 1 webhook.
   const url = process.env.N8N_DASHBOARD_WEBHOOK_URL
   if (!url) {
     return NextResponse.json(
