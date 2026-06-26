@@ -56,6 +56,10 @@ export interface Bill {
   /** This month's due date, YYYY-MM-DD. The mark-paid transaction is logged on this date. */
   dueDate: string
   daysToDue: number
+  /** True when the bill is unpaid but a manual expense of the same amount already exists
+   *  this month — a soft "did you already log this?" warning. Optional: the n8n fallback
+   *  doesn't compute it. */
+  possibleDuplicate?: boolean
 }
 
 export interface Transaction {
