@@ -15,6 +15,7 @@ import { useBudgets } from '@/hooks/useBudgets'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import CollapsibleSection from '@/components/ui/collapsible-section'
 import SpendingByCategory from '@/components/charts/SpendingByCategory'
 import MonthlyTrend from '@/components/charts/MonthlyTrend'
 import GoalsProgress from '@/components/charts/GoalsProgress'
@@ -292,15 +293,29 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Row 3: Assets & Maturities */}
-        <AssetMaturityTracker assets={data.assets} />
+        {/* Row 3: Assets & Maturities — collapsible (rarely used) */}
+        <CollapsibleSection
+          title="Assets & Maturities"
+          badge={`${data.assets.length} assets`}
+          storageKey="fos.collapse.assets"
+          defaultOpen={false}
+        >
+          <AssetMaturityTracker assets={data.assets} title="" />
+        </CollapsibleSection>
 
-        {/* Row 4: Recent Transactions Summary List */}
-        <TransactionList
-          transactions={data.recentTransactions}
+        {/* Row 4: Recent Transactions — collapsible (rarely used) */}
+        <CollapsibleSection
           title="Recent Transactions"
-          categoryColors={categoryColors}
-        />
+          badge={`${data.recentTransactions.length} rows`}
+          storageKey="fos.collapse.transactions"
+          defaultOpen={false}
+        >
+          <TransactionList
+            transactions={data.recentTransactions}
+            title=""
+            categoryColors={categoryColors}
+          />
+        </CollapsibleSection>
       </div>
     )
   }
