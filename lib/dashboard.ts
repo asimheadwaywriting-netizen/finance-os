@@ -46,8 +46,10 @@ interface Row {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL is not configured')
+  // APP_DATABASE_URL — dedicated, verified to point at the canonical Neon DB n8n uses.
+  // Deliberately NOT DATABASE_URL (Vercel's deployed value points at a divergent branch).
+  const url = process.env.APP_DATABASE_URL
+  if (!url) throw new Error('APP_DATABASE_URL is not configured')
   const sql = neon(url)
   const rows = (await sql.query(QUERY)) as unknown as Row[]
   const r = rows[0]
