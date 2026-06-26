@@ -45,7 +45,7 @@ export function categoriesForType(type: TransactionType): CategoryDef[] {
 // Design system tokens (mirrored in tailwind.config.ts `brand` colors)
 export const COLORS = {
   bg: '#0b0f17',
-  income: '#3b82f6', // blue-500
+  income: '#2f6bff', // cobalt — primary accent (matches dashboard reference)
   expense: '#f97316', // orange-500
   warning: '#f59e0b', // amber-500
   neutral: '#6b7280', // gray-500
