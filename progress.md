@@ -148,6 +148,26 @@ chip + hint on the bill row, so you catch it before marking paid.
 - Note: the earlier June duplicates were also manually cleaned (−₿26,000), bringing
   Total Expense from ₿1,31,648 to ₿1,05,648.
 
+## Dashboard fast path — LIVE in production (2026-06-26)
+
+The direct-Postgres read path is now live in prod: steady-state ~290–580ms vs
+~3–4s through n8n, data correct (₿1,05,648).
+
+**The DATABASE_URL trap (important):** Vercel's Neon integration injected a whole
+set of vars on Jun 20 (DATABASE_URL, POSTGRES_URL, PG*, NEON_*). The deployed
+`DATABASE_URL` env var pointed at a **stale/divergent Neon branch** — it returned
+131,648 (pre-cleanup data) while the real DB (what n8n uses, host
+`ep-divine-breeze-ahxsr4x7`) returns 105,648. The Storage-tab connection strings
+were correct; only the deployed env var value was wrong. This caused a confusing
+"why is the expense wrong" episode.
+
+**Fix:** the app's direct path reads a dedicated **`APP_DATABASE_URL`** (set in
+Vercel = the verified pooled string), NOT `DATABASE_URL`. If `APP_DATABASE_URL` is
+absent it falls back to the n8n webhook (canonical). Never point app code at the
+integration-managed `DATABASE_URL` for this project.
+
+Env-var changes need a **redeploy** to take effect (an empty commit triggers it).
+
 ## Demo Deployment — IN PROGRESS (2026-06-13)
 
 - New `lib/demo-data.ts` + `NEXT_PUBLIC_DEMO_MODE` flag gate `/api/dashboard`, `/api/transactions`, `/api/chat` and `useTransactions` to serve self-contained sample data, canned chat replies, and no-persist transactions — documented in CLAUDE.md.
