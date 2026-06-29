@@ -46,10 +46,13 @@ interface Row {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  // APP_DATABASE_URL — dedicated, verified to point at the canonical Neon DB n8n uses.
-  // Deliberately NOT DATABASE_URL (Vercel's deployed value points at a divergent branch).
-  const url = process.env.APP_DATABASE_URL
-  if (!url) throw new Error('APP_DATABASE_URL is not configured')
+  // FINANCE_APP_DB_URL — dedicated, verified to point at the canonical Neon DB n8n uses.
+  // Deliberately NOT DATABASE_URL/APP_DATABASE_URL: Vercel's Neon integration keeps
+  // auto-resyncing and blanking any var matching its managed naming pattern (caught
+  // it wiping APP_DATABASE_URL twice in one session, 2026-06-29). This name is chosen
+  // to fall outside whatever pattern the integration scans for.
+  const url = process.env.FINANCE_APP_DB_URL
+  if (!url) throw new Error('FINANCE_APP_DB_URL is not configured')
   const sql = neon(url)
   const rows = (await sql.query(QUERY)) as unknown as Row[]
   const r = rows[0]

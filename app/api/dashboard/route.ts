@@ -16,11 +16,11 @@ export async function GET() {
     return NextResponse.json(getDemoDashboard())
   }
 
-  // Fast path: direct from Postgres via APP_DATABASE_URL — a dedicated, app-controlled
-  // var. NOT Vercel's integration-managed DATABASE_URL: its deployed value points at a
-  // stale/divergent Neon branch (returned 131,648 vs the real 105,648). If APP_DATABASE_URL
-  // is unset, fall back to the n8n webhook (canonical data).
-  if (process.env.APP_DATABASE_URL) {
+  // Fast path: direct from Postgres via FINANCE_APP_DB_URL — a dedicated, app-controlled
+  // var named to avoid Vercel's Neon integration, which keeps auto-resyncing and blanking
+  // both DATABASE_URL and the previous APP_DATABASE_URL name (caught it happening twice
+  // in one session, 2026-06-29). If unset, fall back to the n8n webhook (canonical data).
+  if (process.env.FINANCE_APP_DB_URL) {
     try {
       return NextResponse.json(await getDashboardData())
     } catch (err) {
