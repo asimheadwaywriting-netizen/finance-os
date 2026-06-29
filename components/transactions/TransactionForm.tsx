@@ -49,21 +49,24 @@ export default function TransactionForm({
   const [note, setNote] = useState<string>('')
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Update category and account selections when options filter or change
+  // Default category only when there's no valid current selection (type changed,
+  // or the previously-picked category disappeared) — not on every background
+  // categories refetch, which would silently overwrite the user's selection.
   useEffect(() => {
     const availableCategories = categoriesFor(type)
-    if (availableCategories.length > 0) {
+    if (availableCategories.length === 0) return
+    if (!availableCategories.some((c) => c.name === category)) {
       setCategory(availableCategories[0].name)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, categories])
 
   useEffect(() => {
-    if (accounts.length > 0) {
-      setAccount(accounts[0].name)
-    } else {
-      setAccount('Cash')
+    if (accountOptions.length === 0) return
+    if (!accountOptions.includes(account)) {
+      setAccount(accountOptions[0])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts])
 
   const handleSubmit = async (e: React.FormEvent) => {
