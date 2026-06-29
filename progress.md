@@ -212,6 +212,17 @@ Env-var changes need a **redeploy** to take effect (an empty commit triggers it)
 - Sample data note: bKash balance is negative (−5,600) by design of the seed; delete the 2026-06-12 Upwork 48,000 test row in the Sheet to return to baseline numbers (income 103,000).
 - **For Milestone 8 (Antigravity):** negative account balances currently render blue with a minus sign in the Accounts placeholder — design system says negatives must be orange (`brand-expense`). Fix when building AccountBalances.tsx.
 
+## Incident — 2026-06-29: stale dashboard + failed transaction logging
+
+**Reported:** a 5,000 taka DBBL expense logged but balance never moved; a new "Transfer" category wouldn't show up / appear in the transaction form, and re-adding it errored as a duplicate.
+
+**Found, two separate bugs:**
+
+1. **Frontend (fixed, code):** `TransactionForm.tsx`'s `useEffect` reset the selected Category/Account to the first list item on *every* background dashboard refetch (window focus, any mutate), not just when Type changed — so a freshly picked category could get silently overwritten before submit. Now only resets when the current selection is actually invalid. Commit `f451f5d`.
+2. **Production env (fixed, infra):** Vercel's `APP_DATABASE_URL` for the production deployment had been blanked (set to `""`) — looked like the Neon integration re-clobbered it again, same trap as the earlier `DATABASE_URL` incident. Because `if (process.env.APP_DATABASE_URL)` is falsy on `""`, production was silently serving stale n8n-fallback data frozen at 2026-06-26. Restored the correct value via `vercel env add` + redeploy (commit `937988f`); verified live — `/api/dashboard` now returns the Transfer category and current-day transactions.
+
+**Still broken (infra, NOT fixed — needs VPS access):** the n8n VPS at `asim.sg-node8n.serverdoor.com` is unreachable — every path, including the n8n login page itself, returns a generic plain-text `404 page not found` (not n8n's own JSON 404), meaning the n8n process or its reverse proxy is down. Since **all writes** (transactions, categories, goals, assets, AI chat) go through n8n webhooks with no direct-DB write path, this is why the 5,000 taka expense never landed and why new "Submit Transaction" attempts now fail with "Failed to log transaction." Action item: check the n8n service / reverse proxy on the VPS and restart whatever's down. Once n8n responds again, retry logging the original expense — nothing needs cleanup first since it was never written.
+
 ## Notes / Decisions
 
 - `safeToSpend` = current-month net − total monthly goal contributions (defined in Workflow 1 Code node).
