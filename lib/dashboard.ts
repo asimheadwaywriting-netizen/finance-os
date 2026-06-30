@@ -53,7 +53,11 @@ export async function getDashboardData(): Promise<DashboardData> {
   // to fall outside whatever pattern the integration scans for.
   const url = process.env.FINANCE_APP_DB_URL
   if (!url) throw new Error('FINANCE_APP_DB_URL is not configured')
-  const sql = neon(url)
+  // Next.js patches global fetch with its own Data Cache; the neon() driver issues
+  // queries over fetch under the hood, so without an explicit no-store it can serve
+  // a stale snapshot even on a force-dynamic route (caught: a just-added category
+  // missing from the response while a slightly older one showed fine, 2026-06-30).
+  const sql = neon(url, { fetchOptions: { cache: 'no-store' } })
   const rows = (await sql.query(QUERY)) as unknown as Row[]
   const r = rows[0]
 
