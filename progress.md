@@ -212,6 +212,14 @@ Env-var changes need a **redeploy** to take effect (an empty commit triggers it)
 - Sample data note: bKash balance is negative (−5,600) by design of the seed; delete the 2026-06-12 Upwork 48,000 test row in the Sheet to return to baseline numbers (income 103,000).
 - **For Milestone 8 (Antigravity):** negative account balances currently render blue with a minus sign in the Accounts placeholder — design system says negatives must be orange (`brand-expense`). Fix when building AccountBalances.tsx.
 
+## Milestone 12 — DONE (2026-06-30): voice input + AI budget setting
+
+- **Voice input:** `ChatInput.tsx` gained a mic button using the browser's native `SpeechRecognition` (no new dependency). Transcribes speech into the text box; doesn't auto-send — user reviews and hits Send themselves, so a misheard word can't silently log a transaction or change a budget.
+- **AI can now set budgets, not just transactions:** Workflow 3 (`ai-chat-handler`) gained a `set_budget` action alongside the existing `log_transaction`, same pattern (system prompt teaches the JSON schema incl. current budgets so the AI knows what exists; Parse Intent extracts it; new IF branch -> HTTP call to Workflow 9 -> reply built from the result).
+- **Prerequisite fix:** Workflow 9 (`record-creator`)'s Budgets insert changed from `ON CONFLICT (category) DO NOTHING` to `DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit` — Categories/Accounts keep the old no-op-on-duplicate behavior, only Budgets upserts now. Without this, "budget with me" conversations could only set a category's budget once ever; asking the AI to adjust an existing one would 400.
+- Scripts: `n8n/patch-budget-upsert.js` (Workflow 9), `n8n/add-budget-chat-action.js` (Workflow 3) — both patch the live workflow in place via the n8n API rather than rebuilding it, and both self-test against the live webhooks.
+- Tested live: set a budget via chat, updated it via chat (confirmed the limit actually changed in Postgres), regression-tested plain Q&A and transaction logging still work unchanged. All test rows cleaned up after.
+
 ## Incident — 2026-06-29: stale dashboard + failed transaction logging
 
 **Reported:** a 5,000 taka DBBL expense logged but balance never moved; a new "Transfer" category wouldn't show up / appear in the transaction form, and re-adding it errored as a duplicate.
