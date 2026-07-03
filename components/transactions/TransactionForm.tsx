@@ -69,6 +69,16 @@ export default function TransactionForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts])
 
+  // Warn (don't block) when an expense exceeds the selected account's tracked
+  // balance — usually means the wrong account is selected or an income entry
+  // was never logged. Blocking would be wrong: the tracked balance can lag reality.
+  const selectedAccount = accounts.find((a) => a.name === account)
+  const parsedLive = parseFloat(amount)
+  const overdraftWarning =
+    type === 'Expense' && selectedAccount && parsedLive > selectedAccount.balance
+      ? `Heads up: "${account}" only has ৳${selectedAccount.balance.toLocaleString()} tracked. This expense would take it below zero — double-check the account or amount.`
+      : null
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setValidationError(null)
@@ -122,6 +132,12 @@ export default function TransactionForm({
           {validationError && (
             <div className="text-xs text-brand-expense bg-brand-expense/10 border border-brand-expense/20 px-3 py-2 rounded-lg">
               {validationError}
+            </div>
+          )}
+
+          {overdraftWarning && (
+            <div className="text-xs text-brand-warning bg-brand-warning/10 border border-brand-warning/20 px-3 py-2 rounded-lg">
+              {overdraftWarning}
             </div>
           )}
 
