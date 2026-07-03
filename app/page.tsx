@@ -783,7 +783,7 @@ export default function Home() {
                 </span>
               )}
             </div>
-            <div className="text-[10px] font-mono text-gray-500">
+            <div className="text-[10px] font-mono text-gray-500" suppressHydrationWarning>
               Last Synced: {new Date().toLocaleTimeString()}
             </div>
           </div>

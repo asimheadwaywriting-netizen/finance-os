@@ -103,7 +103,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       return s + (t.type === 'Income' ? t.amount : -t.amount)
     }, 0)
     const bal = (Number(a.starting_balance) || 0) + delta
-    return { name, balance: bal < 0 ? 0 : bal }
+    // raw kept for totalCash: clamping per-account would hide overdrafts and
+    // overstate safe-to-spend; the clamp is display-only.
+    return { name, balance: bal < 0 ? 0 : bal, raw: bal }
   })
 
   const goals = (r.goals || []).map((g) => {
@@ -213,14 +215,14 @@ export async function getDashboardData(): Promise<DashboardData> {
   const billsUnpaid = bills.reduce((s, b) => s + (b.paid ? 0 : b.amount), 0)
 
   // Safe-to-spend v2: cash − goal reservations − UNPAID bills (paid bills already left the balance).
-  const totalCash = accountBalances.reduce((s, a) => s + a.balance, 0)
+  const totalCash = accountBalances.reduce((s, a) => s + a.raw, 0)
   const safeToSpend = Math.max(0, totalCash - goalContrib - billsUnpaid)
   const weeksLeft = Math.max(1, Math.ceil(daysLeftInMonth / 7))
   const weeklySafeToSpend = Math.round(safeToSpend / weeksLeft)
 
   return {
     metrics: { income, expenses, net, safeToSpend, weeklySafeToSpend, daysLeftInMonth, accountsStartingTotal, billsCommitted, billsUnpaid },
-    accountBalances,
+    accountBalances: accountBalances.map(({ name, balance }) => ({ name, balance })),
     goals,
     assets,
     recentTransactions,

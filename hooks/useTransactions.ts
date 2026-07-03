@@ -17,7 +17,9 @@ const EMPTY_DASHBOARD: DashboardData = {
 }
 
 const isDemo = () => process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-const currentYearMonth = () => new Date().toISOString().substring(0, 7) // "2026-06"
+// Dhaka month (UTC+6), matching the server aggregator — plain toISOString() is UTC
+// and disagrees with the server from midnight to 6am on the 1st.
+const currentYearMonth = () => new Date(Date.now() + 6 * 3600 * 1000).toISOString().substring(0, 7) // "2026-06"
 
 function txMatches(a: Transaction, b: Transaction): boolean {
   return (
