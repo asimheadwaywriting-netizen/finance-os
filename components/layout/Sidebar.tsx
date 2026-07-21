@@ -61,12 +61,15 @@ export default function Sidebar({
               key={item.id}
               onClick={() => onViewChange(item.id)}
               className={cn(
-                "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 outline-none",
-                isActive 
-                  ? "bg-white/5 text-white font-medium shadow-sm border border-white/5" 
+                "group relative flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 outline-none",
+                isActive
+                  ? "bg-white/5 text-white font-medium shadow-sm border border-white/5"
                   : "hover:bg-white/5 hover:text-white border border-transparent"
               )}
             >
+              {isActive && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-brand-income" />
+              )}
               <Icon className={cn(
                 "w-4 h-4 transition-colors",
                 isActive ? "text-brand-income" : "text-gray-500 group-hover:text-white"
